@@ -24,8 +24,8 @@ dependencyResolutionManagement {
             url = uri("https://maven.pkg.github.com/julian-baumann/*")
 
             credentials {
-                username = "julian-baumann"
-                password = "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"
+                username = githubProperties.getProperty("gpr.user")
+                password = githubProperties.getProperty("gpr.token")
             }
         }
         google()
