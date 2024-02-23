@@ -9,6 +9,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.julian_baumann.intershare.MainActivity
 import com.julian_baumann.intershare.UserPreferencesManager
 import kotlinx.coroutines.launch
 
@@ -18,10 +19,12 @@ fun NameChangeDialog(userPreferencesManager: UserPreferencesManager) {
     var showDialog by remember { mutableStateOf(false) }
     var userName by remember { mutableStateOf("") }
     var saveButtonEnabled by remember { mutableStateOf(false) }
+    var initialDeviceNameSet by remember { mutableStateOf(false) }
 
     // Listen to userNameFlow to update userName state
     LaunchedEffect(key1 = true) {
         userPreferencesManager.deviceNameFlow.collect { name ->
+            initialDeviceNameSet = name != null
             userName = name ?: ""
             saveButtonEnabled = userName.length >= 3
 
@@ -65,6 +68,16 @@ fun NameChangeDialog(userPreferencesManager: UserPreferencesManager) {
                     onClick = {
                         scope.launch {
                             userPreferencesManager.saveDeviceName(userName)
+
+                            if (MainActivity.currentDevice != null) {
+                                MainActivity.currentDevice!!.name = userName
+                                MainActivity.nearbyServer?.changeDevice(MainActivity.currentDevice!!)
+
+                                if (!initialDeviceNameSet) {
+                                    MainActivity.startAdvertising()
+                                }
+                            }
+
                             showDialog = false
                         }
                     }

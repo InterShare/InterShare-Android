@@ -15,6 +15,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStore
 import com.julian_baumann.data_rct.*
 import com.julian_baumann.intershare.ui.theme.DataRCTTheme
+import com.julian_baumann.intershare.views.DeviceSelectionView
 import com.julian_baumann.intershare.views.ReceiveContentView
 import com.julian_baumann.intershare.views.StartView
 import kotlinx.coroutines.CoroutineScope
@@ -26,12 +27,24 @@ import java.util.*
 
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
 
-class MainActivity : ComponentActivity(), NearbyConnectionDelegate {
-    private var nearbyServer: NearbyServer? = null
+@OptIn(ExperimentalMaterial3Api::class)
+class MainActivity : ComponentActivity(), NearbyConnectionDelegate, DiscoveryDelegate {
+    companion object {
+        var nearbyServer: NearbyServer? = null
+        var currentDevice: Device? = null
+
+        fun startAdvertising() {
+            CoroutineScope(Dispatchers.Main).launch {
+                nearbyServer?.start()
+            }
+        }
+    }
+
     private var currentConnectionRequest: ConnectionRequest? = null
     private var showConnectionRequest by mutableStateOf(false)
     private var showReceivingSheet by mutableStateOf(false)
     private var receiveProgress: ReceiveProgress? = null
+    private val devices = mutableStateListOf<Device>()
     private var userPreferencesManager by mutableStateOf<UserPreferencesManager?>(null)
 
     private var bluetoothConnectPermissionGranted = false
@@ -76,15 +89,16 @@ class MainActivity : ComponentActivity(), NearbyConnectionDelegate {
 
         val deviceName = runBlocking { userPreferencesManager!!.deviceNameFlow.first() }
 
-        val device = Device(
+        currentDevice = Device(
             id = deviceId,
-            name = deviceName ?: "Unknown",
+            name = deviceName ?: "",
             deviceType = 0
         )
 
-        nearbyServer = NearbyServer(baseContext, device, this)
-        CoroutineScope(Dispatchers.Main).launch {
-            nearbyServer?.start()
+        nearbyServer = NearbyServer(baseContext, currentDevice!!, this)
+
+        if (deviceName != null) {
+            startAdvertising()
         }
     }
 
@@ -94,6 +108,14 @@ class MainActivity : ComponentActivity(), NearbyConnectionDelegate {
         CoroutineScope(Dispatchers.Main).launch {
             nearbyServer?.stop()
         }
+    }
+
+    override fun deviceAdded(value: Device) {
+        devices.add(value)
+    }
+
+    override fun deviceRemoved(deviceId: String) {
+        TODO("Not yet implemented")
     }
 
     override fun receivedConnectionRequest(request: ConnectionRequest) {
@@ -108,11 +130,12 @@ class MainActivity : ComponentActivity(), NearbyConnectionDelegate {
 
         userPreferencesManager = UserPreferencesManager(baseContext)
         bleScanPermissionActivity.launch(Manifest.permission.BLUETOOTH_SCAN)
+        val discovery = Discovery(baseContext, this)
 
         setContent {
             DataRCTTheme {
                 if (userPreferencesManager != null) {
-                    StartView(userPreferencesManager!!)
+                    StartView(userPreferencesManager!!, discovery, devices)
                 }
 
                 if (showReceivingSheet && receiveProgress != null && currentConnectionRequest != null) {
