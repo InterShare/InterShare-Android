@@ -13,18 +13,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import com.julian_baumann.data_rct.Device
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.julian_baumann.data_rct.NearbyServer
-import com.julian_baumann.data_rct.ReceiveProgressDelegate
-import com.julian_baumann.data_rct.ReceiveProgressState
-import com.julian_baumann.intershare.MainActivity
 import com.julian_baumann.intershare.SendProgress
-import com.julian_baumann.intershare.ui.theme.Purple40
 import com.julian_baumann.intershare.ui.theme.Purple80
-import com.julian_baumann.intershare.ui.theme.PurpleGrey40
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -45,29 +41,34 @@ fun getReadableDeviceType(device: Device): String {
     return "Unknown"
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun DeviceSelectionView(devices: List<Device>, nearbyServer: NearbyServer, selectedFileUri: String) {
-    LazyRow(
-        contentPadding = PaddingValues(20.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(5.dp),
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 500.dp)
             .background(Color.Transparent)
     ) {
-        items(devices) { device ->
+        devices.forEach { device ->
             val progress  by remember { mutableStateOf( SendProgress()) }
 
             TextButton(
                 onClick = {
                     CoroutineScope(Dispatchers.IO).launch {
-                        nearbyServer.sendFile(device, selectedFileUri, progress)
+                        try {
+                            nearbyServer.sendFile(device, selectedFileUri, progress)
+                        } catch (error: Exception) {
+                            println(error)
+                        }
                     }
                 },
                 modifier = Modifier.background(Color.Transparent)
             ) {
                 Column(
-                    horizontalAlignment = Alignment.CenterHorizontally
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.width(100.dp)
                 ) {
                     AnimatedCircularProgressIndicator(
                         progress = progress,
@@ -99,7 +100,9 @@ fun DeviceSelectionView(devices: List<Device>, nearbyServer: NearbyServer, selec
                             text = device.name,
                             fontWeight = FontWeight.Bold,
                             fontSize = 13.sp,
-                            lineHeight = 1.em
+                            lineHeight = 1.em,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                         Text(
                             text = getReadableDeviceType(device),

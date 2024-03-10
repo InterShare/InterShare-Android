@@ -1,8 +1,5 @@
 package com.julian_baumann.intershare.views
 
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
@@ -12,7 +9,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Canvas
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
@@ -34,13 +30,29 @@ fun AnimatedCircularProgressIndicator(
     content: @Composable () -> Unit
 ) {
     val maxValue = 1.0f
+    val errorColor = Color(0xFFFF3333)
     var currentValue by remember { mutableFloatStateOf(0.0f) }
+    var successful by remember { mutableStateOf(true) }
 
     when (val state = progress.state) {
         is SendProgressState.Transferring -> currentValue = state.progress.toFloat()
         SendProgressState.Finished -> currentValue = 1.0f
+        SendProgressState.Cancelled -> {
+            currentValue = 1.0f
+            successful = false
+        }
+        SendProgressState.Declined -> {
+            currentValue = 1.0f
+            successful = false
+        }
+        SendProgressState.Connecting -> {
+
+        }
+        SendProgressState.Requesting -> {
+
+        }
         else -> {
-            // TODO
+            // Do nothing
         }
     }
 
@@ -59,11 +71,10 @@ fun AnimatedCircularProgressIndicator(
 //            )
 //        }
 
-        Canvas(
-                Modifier
-                    .progressSemantics(currentValue / maxValue)
-                    .size(CircularIndicatorDiameter)
-                ) {
+        Canvas(Modifier
+            .progressSemantics(currentValue / maxValue)
+            .size(CircularIndicatorDiameter)
+        ) {
             val startAngle = 270f
             val sweep: Float = animateFloat * 360f
             val diameterOffset = stroke.width / 2
@@ -78,7 +89,7 @@ fun AnimatedCircularProgressIndicator(
 
             if (currentValue == maxValue) {
                 drawCircle(
-                    color =  if (!showProgress) Color.Transparent else completedColor,
+                    color =  if (!showProgress) Color.Transparent else (if (successful) completedColor else errorColor),
                     style = stroke,
                     radius = size.minDimension / 2.0f - diameterOffset
                 )

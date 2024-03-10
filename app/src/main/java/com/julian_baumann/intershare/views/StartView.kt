@@ -166,7 +166,6 @@ fun StartView(userPreferencesManager: UserPreferencesManager, discovery: Discove
                     },
                     sheetState = sheetState
                 ) {
-
                     DeviceSelectionView(
                         devices,
                         MainActivity.nearbyServer!!,

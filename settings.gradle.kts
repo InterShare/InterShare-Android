@@ -28,6 +28,7 @@ dependencyResolutionManagement {
                 password = githubProperties.getProperty("gpr.token")
             }
         }
+        mavenLocal()
         google()
         mavenCentral()
     }

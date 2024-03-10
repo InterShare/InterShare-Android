@@ -15,7 +15,6 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStore
 import com.julian_baumann.data_rct.*
 import com.julian_baumann.intershare.ui.theme.DataRCTTheme
-import com.julian_baumann.intershare.views.DeviceSelectionView
 import com.julian_baumann.intershare.views.ReceiveContentView
 import com.julian_baumann.intershare.views.StartView
 import kotlinx.coroutines.CoroutineScope
