@@ -4,10 +4,15 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Smartphone
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.julian_baumann.intershare.MainActivity
 import com.julian_baumann.intershare.UserPreferencesManager
@@ -34,12 +39,34 @@ fun NameChangeDialog(userPreferencesManager: UserPreferencesManager) {
         }
     }
 
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Text("Device name:")
-        TextButton(onClick = { showDialog = true }) {
-            Text(userName)
+//    Row(verticalAlignment = Alignment.CenterVertically) {
+//        Text("Device name:")
+//        TextButton(onClick = { showDialog = true }) {
+//            Text(userName)
+//        }
+//    }
+    DropdownMenuItem(
+        text = {
+            Column {
+                Text("Device Name")
+                Text(userName,
+                    modifier = Modifier.alpha(0.7F),
+                    fontWeight = FontWeight.Normal,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        },
+        leadingIcon = {
+            Icon(
+                Icons.Filled.Smartphone,
+                contentDescription = "Change Name",
+            )
+        },
+        onClick = {
+            showDialog = true
         }
-    }
+    )
 
     if (showDialog) {
         AlertDialog(

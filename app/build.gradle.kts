@@ -66,7 +66,7 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 
-    implementation("com.julian_baumann:data_rct:0.0.9-test.2")
+    implementation("com.julian_baumann:data_rct:0.0.9-test.5")
     implementation("androidx.compose.material3:material3-android:1.2.0")
     implementation("androidx.compose.material:material-icons-extended:1.6.1")
     implementation("androidx.appcompat:appcompat:1.6.1")

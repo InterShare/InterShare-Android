@@ -2,10 +2,17 @@ package com.julian_baumann.intershare
 
 import android.Manifest
 import android.content.Context
+import android.content.Intent
+import android.media.MediaScannerConnection
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Environment
+import android.os.Parcelable
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.compose.material3.*
@@ -22,7 +29,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import java.io.File
 import java.util.*
+
 
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
 
@@ -45,6 +54,7 @@ class MainActivity : ComponentActivity(), NearbyConnectionDelegate, DiscoveryDel
     private var receiveProgress: ReceiveProgress? = null
     private val devices = mutableStateListOf<Device>()
     private var userPreferencesManager by mutableStateOf<UserPreferencesManager?>(null)
+    private var sharedFilePath: String? = null
 
     private var bluetoothConnectPermissionGranted = false
     private var bluetoothAdvertisePermissionGranted = false
@@ -91,7 +101,7 @@ class MainActivity : ComponentActivity(), NearbyConnectionDelegate, DiscoveryDel
         currentDevice = Device(
             id = deviceId,
             name = deviceName ?: "",
-            deviceType = 0
+            deviceType = 1
         )
 
         nearbyServer = NearbyServer(baseContext, currentDevice!!, this)
@@ -106,6 +116,14 @@ class MainActivity : ComponentActivity(), NearbyConnectionDelegate, DiscoveryDel
 
         CoroutineScope(Dispatchers.Main).launch {
             nearbyServer?.stop()
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+
+        CoroutineScope(Dispatchers.Main).launch {
+            nearbyServer?.start()
         }
     }
 
@@ -125,7 +143,22 @@ class MainActivity : ComponentActivity(), NearbyConnectionDelegate, DiscoveryDel
     @OptIn(ExperimentalMaterial3Api::class)
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onCreate(savedInstanceState: Bundle?) {
+        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+
+        when {
+            intent?.action == Intent.ACTION_SEND -> {
+                val uri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    intent.getParcelableExtra(Intent.EXTRA_STREAM, Parcelable::class.java) as? Uri
+                } else {
+                    intent.getParcelableExtra<Parcelable>(Intent.EXTRA_STREAM) as? Uri
+                }
+
+                uri?.let {
+                    sharedFilePath = getPathFromUri(baseContext, it)
+                }
+            }
+        }
 
         userPreferencesManager = UserPreferencesManager(baseContext)
         bleScanPermissionActivity.launch(Manifest.permission.BLUETOOTH_SCAN)
@@ -134,7 +167,7 @@ class MainActivity : ComponentActivity(), NearbyConnectionDelegate, DiscoveryDel
         setContent {
             DataRCTTheme {
                 if (userPreferencesManager != null) {
-                    StartView(userPreferencesManager!!, discovery, devices)
+                    StartView(userPreferencesManager!!, discovery, devices, sharedFilePath)
                 }
 
                 if (showReceivingSheet && receiveProgress != null && currentConnectionRequest != null) {
@@ -172,6 +205,22 @@ class MainActivity : ComponentActivity(), NearbyConnectionDelegate, DiscoveryDel
 
                                     Thread {
                                         currentConnectionRequest?.accept()
+                                        val fileName = currentConnectionRequest?.getFileTransferIntent()?.fileName
+
+                                        val file = File(
+                                            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+                                            fileName
+                                        )
+
+                                        MediaScannerConnection.scanFile(
+                                            baseContext,
+                                            arrayOf<String>(file.absolutePath),
+                                            null
+                                        ) { path, uri ->
+                                            Log.i("MediaScanner", "Scanned $path:")
+                                            Log.i("MediaScanner", "-> uri=$uri")
+                                        }
+
                                     }.start()
                                 }
                             ) {

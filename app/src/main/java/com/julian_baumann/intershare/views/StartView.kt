@@ -1,19 +1,22 @@
 package com.julian_baumann.intershare.views
 
 import android.app.DownloadManager
-import android.content.Context
 import android.content.Intent
-import android.net.Uri
-import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.focus.focusModifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -24,41 +27,30 @@ import com.julian_baumann.data_rct.Device
 import com.julian_baumann.data_rct.Discovery
 import com.julian_baumann.intershare.MainActivity
 import com.julian_baumann.intershare.UserPreferencesManager
+import com.julian_baumann.intershare.getPathFromUri
 import kotlinx.coroutines.launch
-import java.io.File
-import java.io.FileOutputStream
+import android.content.Context
+import android.content.Context.SENSOR_SERVICE
+import android.content.pm.PackageInfo
+import android.content.pm.PackageManager
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
+import androidx.core.content.ContextCompat.getSystemService
 
-fun getPathFromUri(context: Context, uri: Uri): String? {
-    if (uri.scheme.equals("file")) {
-        return uri.path
-    } else if (uri.scheme.equals("content")) {
-        val cursor = context.contentResolver.query(uri, null, null, null, null)
-        cursor?.use {
-            if (it.moveToFirst()) {
-                val index = it.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-                if (index != -1) {
-                    val fileName = it.getString(index)
-                    val directory = context.cacheDir
-                    val file = File(directory, fileName)
-                    if (!file.exists()) {
-                        context.contentResolver.openInputStream(uri).use { input ->
-                            FileOutputStream(file).use { output ->
-                                input?.copyTo(output)
-                            }
-                        }
-                    }
-                    return file.absolutePath
-                }
-            }
-        }
+fun getAppVersion(context: Context): String {
+    return try {
+        val packageInfo: PackageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
+        packageInfo.versionName
+    } catch (e: PackageManager.NameNotFoundException) {
+        "Unknown"
     }
-
-    return null
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun StartView(userPreferencesManager: UserPreferencesManager, discovery: Discovery, devices: List<Device>) {
+fun StartView(userPreferencesManager: UserPreferencesManager, discovery: Discovery, devices: List<Device>, sharedFilePath: String?) {
     val context = LocalContext.current
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
 
@@ -66,35 +58,84 @@ fun StartView(userPreferencesManager: UserPreferencesManager, discovery: Discove
     var selectedFileUri by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState()
+    var showMenu by remember { mutableStateOf(false) }
+
+    sharedFilePath?.let { path ->
+        selectedFileUri = path
+
+        scope.launch { MainActivity.nearbyServer?.stop() }.invokeOnCompletion {
+            discovery.startScanning()
+            showDeviceSelectionSheet = true
+        }
+    }
 
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            MediumTopAppBar(
+            LargeTopAppBar(
                 colors = TopAppBarDefaults.topAppBarColors(
-                    titleContentColor = MaterialTheme.colorScheme.primary,
+                    titleContentColor = MaterialTheme.colorScheme.primary
                 ),
                 title = {
                     Text(
                         "InterShare",
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        fontSize = 35.sp,
+                        fontWeight = FontWeight.Bold
                     )
+                },
+                actions = {
+                    IconButton(onClick = { showMenu = !showMenu }) {
+                        Icon(imageVector = Icons.Default.Settings, contentDescription = "More")
+                    }
+                    DropdownMenu(
+                        expanded = showMenu,
+                        modifier = Modifier.widthIn(min = 250.dp),
+                        onDismissRequest = { showMenu = false }
+                    ) {
+                        NameChangeDialog(userPreferencesManager)
+//                        HorizontalDivider()
+                        Text(
+                            text = "App Version: ${getAppVersion(context)}",
+                            modifier = Modifier
+                                .padding(horizontal = 16.dp, vertical = 8.dp)
+                                .background(Color.Transparent)
+                        )
+                    }
                 },
                 scrollBehavior = scrollBehavior
             )
         },
     ) { innerPadding ->
         Surface(
-            modifier = Modifier.fillMaxSize().padding(innerPadding),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
             color = MaterialTheme.colorScheme.background
         ) {
-            Column(modifier = Modifier.padding(PaddingValues(top = 0.dp, start = 18.dp))) {
-                NameChangeDialog(userPreferencesManager = userPreferencesManager)
+//            Column {
+//                ListItem(
+//                    headlineContent = { Text("Device Name") },
+//                    supportingContent = { Text("Julians Nothing") },
+//                    leadingContent = {
+//                        Icon(
+//                            Icons.Filled.Smartphone,
+//                            contentDescription = "Phone",
+//                        )
+//                    },
+//                    modifier = Modifier.clickable {
+//
+//                    }
+//                )
+//            }
+
+            Column {
+//                PulseAnimation()
             }
 
             Column(
-                modifier = Modifier.fillMaxSize().padding(20.dp),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(20.dp),
                 verticalArrangement = Arrangement.Bottom,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
@@ -109,9 +150,13 @@ fun StartView(userPreferencesManager: UserPreferencesManager, discovery: Discove
 
                 val pickFileLauncher = rememberLauncherForActivityResult(
                     ActivityResultContracts.GetContent()
-                ) { imageUri ->
-                    if (imageUri != null) {
-                        println(imageUri)
+                ) { fileUri ->
+                    if (fileUri != null) {
+                        selectedFileUri = getPathFromUri(context, fileUri)
+                        scope.launch { MainActivity.nearbyServer?.stop() }.invokeOnCompletion {
+                            discovery.startScanning()
+                            showDeviceSelectionSheet = true
+                        }
                     }
                 }
                 val pickVisualMediaLauncher = rememberLauncherForActivityResult(
@@ -132,7 +177,9 @@ fun StartView(userPreferencesManager: UserPreferencesManager, discovery: Discove
                 ) {
                     Button(
                         onClick = { pickVisualMediaLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)) },
-                        modifier = Modifier.weight(1f).height(60.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(60.dp),
                         colors = ButtonDefaults.buttonColors(MaterialTheme.colorScheme.secondary)
                     ) {
                         Text("Image or Video")
@@ -142,7 +189,9 @@ fun StartView(userPreferencesManager: UserPreferencesManager, discovery: Discove
 
                     Button(
                         onClick = { pickFileLauncher.launch("*/*") },
-                        modifier = Modifier.weight(1f).height(60.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(60.dp),
                         colors = ButtonDefaults.buttonColors(MaterialTheme.colorScheme.secondary)
                     ) {
                         Text("File")
@@ -153,7 +202,9 @@ fun StartView(userPreferencesManager: UserPreferencesManager, discovery: Discove
 
                 FilledTonalButton(
                     onClick = { context.startActivity(Intent(DownloadManager.ACTION_VIEW_DOWNLOADS)) },
-                    modifier = Modifier.fillMaxWidth().height(60.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(60.dp)
                 ) {
                     Text("Show received files")
                 }
@@ -168,7 +219,6 @@ fun StartView(userPreferencesManager: UserPreferencesManager, discovery: Discove
                 ) {
                     DeviceSelectionView(
                         devices,
-                        MainActivity.nearbyServer!!,
                         selectedFileUri!!
                     )
                 }

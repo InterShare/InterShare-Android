@@ -36,7 +36,10 @@ fun AnimatedCircularProgressIndicator(
 
     when (val state = progress.state) {
         is SendProgressState.Transferring -> currentValue = state.progress.toFloat()
-        SendProgressState.Finished -> currentValue = 1.0f
+        SendProgressState.Finished -> {
+            currentValue = 1.0f
+            successful = true
+        }
         SendProgressState.Cancelled -> {
             currentValue = 1.0f
             successful = false
@@ -57,19 +60,13 @@ fun AnimatedCircularProgressIndicator(
     }
 
     val stroke = with(LocalDensity.current) {
-        Stroke(width = 4.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
+        Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
     }
 
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
         content()
 
         val animateFloat = currentValue / maxValue
-//        LaunchedEffect(animateFloat) {
-//            animateFloat.animateTo(
-//                targetValue = currentValue / maxValue,
-//                animationSpec = tween(durationMillis = 2000, easing = FastOutSlowInEasing)
-//            )
-//        }
 
         Canvas(Modifier
             .progressSemantics(currentValue / maxValue)
@@ -78,12 +75,6 @@ fun AnimatedCircularProgressIndicator(
             val startAngle = 270f
             val sweep: Float = animateFloat * 360f
             val diameterOffset = stroke.width / 2
-
-//            drawCircle(
-//                color = if (!showProgress) Color.Transparent else progressBackgroundColor,
-//                style = stroke,
-//                radius = size.minDimension / 2.0f - diameterOffset
-//            )
 
             drawCircularProgressIndicator(startAngle, sweep, if (showProgress) progressIndicatorColor else Color.Transparent, stroke)
 
@@ -108,6 +99,7 @@ private fun DrawScope.drawCircularProgressIndicator(
     // To do this we need to remove half the stroke width from the total diameter for both sides.
     val diameterOffset = stroke.width / 2
     val arcDimen = size.width - 2 * diameterOffset
+
     drawArc(
         color = color,
         startAngle = startAngle,
@@ -120,4 +112,4 @@ private fun DrawScope.drawCircularProgressIndicator(
 }
 
 // Diameter of the indicator circle
-private val CircularIndicatorDiameter = 84.dp
+private val CircularIndicatorDiameter = 70.dp
