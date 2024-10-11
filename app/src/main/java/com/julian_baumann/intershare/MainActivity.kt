@@ -1,8 +1,12 @@
 package com.julian_baumann.intershare
 
 import android.Manifest
+import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothManager
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.media.MediaScannerConnection
 import android.net.Uri
 import android.os.Build
@@ -15,14 +19,27 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStore
+import androidx.navigation.NavController
+import androidx.navigation.NavHostController
+import androidx.navigation.NavType
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.julian_baumann.data_rct.*
 import com.julian_baumann.intershare.ui.theme.DataRCTTheme
 import com.julian_baumann.intershare.views.ReceiveContentView
+import com.julian_baumann.intershare.views.SendView
 import com.julian_baumann.intershare.views.StartView
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -41,25 +58,31 @@ class MainActivity : ComponentActivity(), NearbyConnectionDelegate, DiscoveryDel
         var nearbyServer: NearbyServer? = null
         var currentDevice: Device? = null
 
+        private var currentConnectionRequest: ConnectionRequest? = null
+        private var showConnectionRequest by mutableStateOf(false)
+        private var showReceivingSheet by mutableStateOf(false)
+        private var receiveProgress: ReceiveProgress? = null
+        private val devices = mutableStateListOf<Device>()
+        private var userPreferencesManager by mutableStateOf<UserPreferencesManager?>(null)
+        private var selectedFileUri = mutableStateOf<String?>(null)
+        private var sharedFilePath: String? = null
+
+        private var bluetoothConnectPermissionGranted = false
+        private var bluetoothAdvertisePermissionGranted = false
+        private var bluetoothScanPermissionGranted = false
+        private var accessLocationPermissionGranted = false
+
         fun startAdvertising() {
             CoroutineScope(Dispatchers.Main).launch {
                 nearbyServer?.start()
             }
         }
     }
+    private lateinit var navController: NavHostController
 
-    private var currentConnectionRequest: ConnectionRequest? = null
-    private var showConnectionRequest by mutableStateOf(false)
-    private var showReceivingSheet by mutableStateOf(false)
-    private var receiveProgress: ReceiveProgress? = null
-    private val devices = mutableStateListOf<Device>()
-    private var userPreferencesManager by mutableStateOf<UserPreferencesManager?>(null)
-    private var sharedFilePath: String? = null
-
-    private var bluetoothConnectPermissionGranted = false
-    private var bluetoothAdvertisePermissionGranted = false
-    private var bluetoothScanPermissionGranted = false
-    private var accessLocationPermissionGranted = false
+    init {
+        Log.i("InterShare", "test")
+    }
 
     private val bleConnectPermissionActivity = registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted: Boolean ->
         bluetoothConnectPermissionGranted = isGranted
@@ -146,37 +169,94 @@ class MainActivity : ComponentActivity(), NearbyConnectionDelegate, DiscoveryDel
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
 
-        when {
-            intent?.action == Intent.ACTION_SEND -> {
-                val uri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    intent.getParcelableExtra(Intent.EXTRA_STREAM, Parcelable::class.java) as? Uri
-                } else {
-                    intent.getParcelableExtra<Parcelable>(Intent.EXTRA_STREAM) as? Uri
-                }
-
-                uri?.let {
-                    sharedFilePath = getPathFromUri(baseContext, it)
-                }
-            }
-        }
-
         userPreferencesManager = UserPreferencesManager(baseContext)
         bleScanPermissionActivity.launch(Manifest.permission.BLUETOOTH_SCAN)
-        val discovery = Discovery(baseContext, this)
 
         setContent {
-            DataRCTTheme {
-                if (userPreferencesManager != null) {
-                    StartView(userPreferencesManager!!, discovery, devices, sharedFilePath)
+            navController = rememberNavController()
+            val discovery = remember { Discovery(baseContext, this) }
+            val isExternalShare = remember { mutableStateOf(false) }
+            var startDestination = remember { "start" }
+            val bluetoothManager = baseContext.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+            val bluetoothAdapter = bluetoothManager.adapter
+            var isBluetoothEnabled by remember { mutableStateOf(bluetoothAdapter.isEnabled) }
+
+            // Update the state dynamically whenever BLE is enabled or disabled
+            LaunchedEffect(Unit) {
+                val bluetoothStateReceiver = object : BroadcastReceiver() {
+                    override fun onReceive(context: Context, intent: Intent) {
+                        if (intent.action == BluetoothAdapter.ACTION_STATE_CHANGED) {
+                            val state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR)
+                            isBluetoothEnabled = (state == BluetoothAdapter.STATE_ON)
+
+                            if (isBluetoothEnabled) {
+                                CoroutineScope(Dispatchers.Default).launch {
+                                    if (navController.currentDestination?.route == "send") {
+                                        discovery.startScanning()
+                                    } else {
+                                        nearbyServer?.start()
+                                    }
+                                }
+                            } else {
+                                CoroutineScope(Dispatchers.Default).launch {
+                                    nearbyServer?.stop()
+                                }
+                            }
+                        }
+                    }
                 }
 
-                if (showReceivingSheet && receiveProgress != null && currentConnectionRequest != null) {
-                    ModalBottomSheet(
-                        onDismissRequest = {
-                            showReceivingSheet = false
+                val filter = IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED)
+                baseContext.registerReceiver(bluetoothStateReceiver, filter)
+            }
+
+            DataRCTTheme {
+                when {
+                    intent?.action == Intent.ACTION_SEND -> {
+                        val uri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                            intent.getParcelableExtra(Intent.EXTRA_STREAM, Parcelable::class.java) as? Uri
+                        } else {
+                            intent.getParcelableExtra<Parcelable>(Intent.EXTRA_STREAM) as? Uri
                         }
+
+                        uri?.let {
+                            selectedFileUri.value = getPathFromUri(baseContext, it)
+
+                            isExternalShare.value = true
+                            startDestination = "send"
+                        }
+                    }
+                }
+
+                if (userPreferencesManager != null) {
+                    NavHost(
+                        modifier = Modifier.fillMaxSize(),
+                        navController = navController,
+                        startDestination = startDestination
                     ) {
-                        ReceiveContentView(receiveProgress!!, currentConnectionRequest)
+                        composable(route = "start") {
+                            StartView(userPreferencesManager!!, discovery, devices, sharedFilePath, navController, selectedFileUri, isBluetoothEnabled)
+                        }
+
+                        composable(
+                            route = "send",
+                        ) {
+                            devices.clear()
+
+                            if (isBluetoothEnabled) {
+                                discovery.startScanning()
+                            }
+
+                            SendView(devices, selectedFileUri.value!!, isExternalShare.value, navController, isBluetoothEnabled, discovery, {
+                                finish()
+                            })
+                        }
+
+                        composable(route = "receive") {
+                            if (receiveProgress != null && currentConnectionRequest != null) {
+                                ReceiveContentView(receiveProgress!!, navController, currentConnectionRequest)
+                            }
+                        }
                     }
                 }
 
@@ -202,6 +282,8 @@ class MainActivity : ComponentActivity(), NearbyConnectionDelegate, DiscoveryDel
                                     receiveProgress = ReceiveProgress()
                                     currentConnectionRequest?.setProgressDelegate(receiveProgress!!)
                                     showReceivingSheet = true
+
+                                    navController.navigate("receive")
 
                                     Thread {
                                         currentConnectionRequest?.accept()

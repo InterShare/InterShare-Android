@@ -1,43 +1,38 @@
 package com.julian_baumann.intershare.views
 
 import android.app.DownloadManager
+import android.bluetooth.BluetoothAdapter
+import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageInfo
+import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.BluetoothDisabled
+import androidx.compose.material.icons.filled.QuestionMark
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.focus.focusModifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
+import androidx.navigation.NavHostController
 import com.julian_baumann.data_rct.Device
 import com.julian_baumann.data_rct.Discovery
 import com.julian_baumann.intershare.MainActivity
 import com.julian_baumann.intershare.UserPreferencesManager
 import com.julian_baumann.intershare.getPathFromUri
 import kotlinx.coroutines.launch
-import android.content.Context
-import android.content.Context.SENSOR_SERVICE
-import android.content.pm.PackageInfo
-import android.content.pm.PackageManager
-import android.hardware.Sensor
-import android.hardware.SensorEvent
-import android.hardware.SensorEventListener
-import android.hardware.SensorManager
-import androidx.core.content.ContextCompat.getSystemService
 
 fun getAppVersion(context: Context): String {
     return try {
@@ -50,30 +45,23 @@ fun getAppVersion(context: Context): String {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun StartView(userPreferencesManager: UserPreferencesManager, discovery: Discovery, devices: List<Device>, sharedFilePath: String?) {
+fun StartView(userPreferencesManager: UserPreferencesManager, discovery: Discovery, devices: List<Device>, sharedFilePath: String?, navController: NavHostController, selectedFileUri: MutableState<String?>, bluetoothEnabled: Boolean) {
     val context = LocalContext.current
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
 
     var showDeviceSelectionSheet by remember { mutableStateOf(false) }
-    var selectedFileUri by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
-    val sheetState = rememberModalBottomSheetState()
     var showMenu by remember { mutableStateOf(false) }
 
-    sharedFilePath?.let { path ->
-        selectedFileUri = path
-
-        scope.launch { MainActivity.nearbyServer?.stop() }.invokeOnCompletion {
-            discovery.startScanning()
-            showDeviceSelectionSheet = true
-        }
-    }
-
     Scaffold(
-        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        modifier = Modifier
+            .nestedScroll(scrollBehavior.nestedScrollConnection)
+            .background(Color.Transparent)
+            .zIndex(2f),
         topBar = {
             LargeTopAppBar(
                 colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent,
                     titleContentColor = MaterialTheme.colorScheme.primary
                 ),
                 title = {
@@ -85,15 +73,13 @@ fun StartView(userPreferencesManager: UserPreferencesManager, discovery: Discove
                 },
                 actions = {
                     IconButton(onClick = { showMenu = !showMenu }) {
-                        Icon(imageVector = Icons.Default.Settings, contentDescription = "More")
+                        Icon(imageVector = Icons.Default.QuestionMark, contentDescription = "More")
                     }
                     DropdownMenu(
                         expanded = showMenu,
                         modifier = Modifier.widthIn(min = 250.dp),
                         onDismissRequest = { showMenu = false }
                     ) {
-                        NameChangeDialog(userPreferencesManager)
-//                        HorizontalDivider()
                         Text(
                             text = "App Version: ${getAppVersion(context)}",
                             modifier = Modifier
@@ -108,34 +94,33 @@ fun StartView(userPreferencesManager: UserPreferencesManager, discovery: Discove
     ) { innerPadding ->
         Surface(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
+                .fillMaxSize(),
             color = MaterialTheme.colorScheme.background
         ) {
-//            Column {
-//                ListItem(
-//                    headlineContent = { Text("Device Name") },
-//                    supportingContent = { Text("Julians Nothing") },
-//                    leadingContent = {
-//                        Icon(
-//                            Icons.Filled.Smartphone,
-//                            contentDescription = "Phone",
-//                        )
-//                    },
-//                    modifier = Modifier.clickable {
-//
-//                    }
-//                )
-//            }
-
             Column {
-//                PulseAnimation()
+                DynamicBackgroundGradient(
+                    300.dp,
+                    if (bluetoothEnabled) DynamicBackgroundGradientColors.Start else DynamicBackgroundGradientColors.Error
+                )
+            }
+
+            Column(modifier = Modifier.padding(15.dp, innerPadding.calculateTopPadding() - 10.dp, 15.dp, 0.dp)) {
+                NameChangeDialog(userPreferencesManager, bluetoothEnabled)
+            }
+
+            if (!bluetoothEnabled) {
+                Column(
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    BluetoothStateView(context)
+                }
             }
 
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(20.dp),
+                    .padding(20.dp, 20.dp, 20.dp, 20.dp + innerPadding.calculateBottomPadding()),
                 verticalArrangement = Arrangement.Bottom,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
@@ -152,10 +137,9 @@ fun StartView(userPreferencesManager: UserPreferencesManager, discovery: Discove
                     ActivityResultContracts.GetContent()
                 ) { fileUri ->
                     if (fileUri != null) {
-                        selectedFileUri = getPathFromUri(context, fileUri)
+                        selectedFileUri.value = getPathFromUri(context, fileUri)
                         scope.launch { MainActivity.nearbyServer?.stop() }.invokeOnCompletion {
-                            discovery.startScanning()
-                            showDeviceSelectionSheet = true
+                            navController.navigate("send")
                         }
                     }
                 }
@@ -163,10 +147,9 @@ fun StartView(userPreferencesManager: UserPreferencesManager, discovery: Discove
                     ActivityResultContracts.PickVisualMedia()
                 ) { imageUri ->
                     if (imageUri != null) {
-                        selectedFileUri = getPathFromUri(context, imageUri)
+                        selectedFileUri.value = getPathFromUri(context, imageUri)
                         scope.launch { MainActivity.nearbyServer?.stop() }.invokeOnCompletion {
-                            discovery.startScanning()
-                            showDeviceSelectionSheet = true
+                            navController.navigate("send")
                         }
                     }
                 }
@@ -176,6 +159,7 @@ fun StartView(userPreferencesManager: UserPreferencesManager, discovery: Discove
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Button(
+                        enabled = bluetoothEnabled,
                         onClick = { pickVisualMediaLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)) },
                         modifier = Modifier
                             .weight(1f)
@@ -188,6 +172,7 @@ fun StartView(userPreferencesManager: UserPreferencesManager, discovery: Discove
                     Spacer(modifier = Modifier.width(10.dp))
 
                     Button(
+                        enabled = bluetoothEnabled,
                         onClick = { pickFileLauncher.launch("*/*") },
                         modifier = Modifier
                             .weight(1f)
@@ -201,26 +186,13 @@ fun StartView(userPreferencesManager: UserPreferencesManager, discovery: Discove
                 Spacer(modifier = Modifier.height(10.dp))
 
                 FilledTonalButton(
+                    enabled = bluetoothEnabled,
                     onClick = { context.startActivity(Intent(DownloadManager.ACTION_VIEW_DOWNLOADS)) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(60.dp)
                 ) {
                     Text("Show received files")
-                }
-            }
-
-            if (showDeviceSelectionSheet) {
-                ModalBottomSheet(
-                    onDismissRequest = {
-                        showDeviceSelectionSheet = false
-                    },
-                    sheetState = sheetState
-                ) {
-                    DeviceSelectionView(
-                        devices,
-                        selectedFileUri!!
-                    )
                 }
             }
         }

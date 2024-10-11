@@ -1,9 +1,8 @@
 package com.julian_baumann.intershare.views
 
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Smartphone
 import androidx.compose.material3.*
@@ -11,15 +10,19 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.toUpperCase
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.julian_baumann.intershare.MainActivity
 import com.julian_baumann.intershare.UserPreferencesManager
 import kotlinx.coroutines.launch
+import java.util.*
 
 @Composable
-fun NameChangeDialog(userPreferencesManager: UserPreferencesManager) {
+fun NameChangeDialog(userPreferencesManager: UserPreferencesManager, enabled: Boolean) {
     val scope = rememberCoroutineScope()
     var showDialog by remember { mutableStateOf(false) }
     var userName by remember { mutableStateOf("") }
@@ -39,34 +42,37 @@ fun NameChangeDialog(userPreferencesManager: UserPreferencesManager) {
         }
     }
 
-//    Row(verticalAlignment = Alignment.CenterVertically) {
-//        Text("Device name:")
-//        TextButton(onClick = { showDialog = true }) {
-//            Text(userName)
-//        }
-//    }
-    DropdownMenuItem(
-        text = {
-            Column {
-                Text("Device Name")
-                Text(userName,
-                    modifier = Modifier.alpha(0.7F),
-                    fontWeight = FontWeight.Normal,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-        },
-        leadingIcon = {
-            Icon(
-                Icons.Filled.Smartphone,
-                contentDescription = "Change Name",
-            )
-        },
+    FilledTonalButton(modifier = Modifier
+        .padding(0.dp, 0.dp)
+        .defaultMinSize(1.dp, 1.dp),
+        contentPadding = PaddingValues(7.dp, 7.dp, 15.dp, 7.dp),
+        enabled = enabled,
         onClick = {
             showDialog = true
+        }) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .size(30.dp)
+                    .background(Color(0xFFD32F2F), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = if (userName.isNotEmpty()) userName.first().toString().uppercase(Locale.getDefault()) else "",
+                    color = Color.White,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            Text(
+                text = userName,
+                style = MaterialTheme.typography.bodyMedium
+            )
         }
-    )
+    }
 
     if (showDialog) {
         AlertDialog(
