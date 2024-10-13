@@ -14,6 +14,7 @@ import android.os.Bundle
 import android.os.Environment
 import android.os.Parcelable
 import android.util.Log
+import android.view.HapticFeedbackConstants
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -26,6 +27,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStore
@@ -62,7 +64,7 @@ class MainActivity : ComponentActivity(), NearbyConnectionDelegate, DiscoveryDel
         private var showConnectionRequest by mutableStateOf(false)
         private var showReceivingSheet by mutableStateOf(false)
         private var receiveProgress: ReceiveProgress? = null
-        private val devices = mutableStateListOf<Device>()
+        private var devices = mutableStateListOf<Device>()
         private var userPreferencesManager by mutableStateOf<UserPreferencesManager?>(null)
         private var selectedFileUri = mutableStateOf<String?>(null)
         private var sharedFilePath: String? = null
@@ -151,7 +153,13 @@ class MainActivity : ComponentActivity(), NearbyConnectionDelegate, DiscoveryDel
     }
 
     override fun deviceAdded(value: Device) {
-        devices.add(value)
+        val indexOfExistingDevice = devices.indexOfFirst { it.id == value.id }
+
+        if (indexOfExistingDevice >= 0) {
+            devices[indexOfExistingDevice] = value
+        } else {
+            devices.add(value)
+        }
     }
 
     override fun deviceRemoved(deviceId: String) {
@@ -192,6 +200,7 @@ class MainActivity : ComponentActivity(), NearbyConnectionDelegate, DiscoveryDel
                             if (isBluetoothEnabled) {
                                 CoroutineScope(Dispatchers.Default).launch {
                                     if (navController.currentDestination?.route == "send") {
+                                        nearbyServer?.stop()
                                         discovery.startScanning()
                                     } else {
                                         nearbyServer?.start()
@@ -221,8 +230,9 @@ class MainActivity : ComponentActivity(), NearbyConnectionDelegate, DiscoveryDel
 
                         uri?.let {
                             selectedFileUri.value = getPathFromUri(baseContext, it)
-
                             isExternalShare.value = true
+                            devices.clear()
+                            devices.addAll(discovery.getDevices())
                             startDestination = "send"
                         }
                     }
@@ -241,7 +251,9 @@ class MainActivity : ComponentActivity(), NearbyConnectionDelegate, DiscoveryDel
                         composable(
                             route = "send",
                         ) {
-                            devices.clear()
+                            CoroutineScope(Dispatchers.Default).launch {
+                                nearbyServer?.stop()
+                            }
 
                             if (isBluetoothEnabled) {
                                 discovery.startScanning()

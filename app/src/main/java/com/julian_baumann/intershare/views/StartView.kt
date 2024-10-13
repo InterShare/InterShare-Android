@@ -16,6 +16,7 @@ import androidx.compose.material.icons.filled.BluetoothDisabled
 import androidx.compose.material.icons.filled.QuestionMark
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -30,6 +31,7 @@ import androidx.navigation.NavHostController
 import com.julian_baumann.data_rct.Device
 import com.julian_baumann.data_rct.Discovery
 import com.julian_baumann.intershare.MainActivity
+import com.julian_baumann.intershare.MainActivity.Companion
 import com.julian_baumann.intershare.UserPreferencesManager
 import com.julian_baumann.intershare.getPathFromUri
 import kotlinx.coroutines.launch
@@ -45,7 +47,7 @@ fun getAppVersion(context: Context): String {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun StartView(userPreferencesManager: UserPreferencesManager, discovery: Discovery, devices: List<Device>, sharedFilePath: String?, navController: NavHostController, selectedFileUri: MutableState<String?>, bluetoothEnabled: Boolean) {
+fun StartView(userPreferencesManager: UserPreferencesManager, discovery: Discovery, devices: SnapshotStateList<Device>, sharedFilePath: String?, navController: NavHostController, selectedFileUri: MutableState<String?>, bluetoothEnabled: Boolean) {
     val context = LocalContext.current
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
 
@@ -139,6 +141,8 @@ fun StartView(userPreferencesManager: UserPreferencesManager, discovery: Discove
                     if (fileUri != null) {
                         selectedFileUri.value = getPathFromUri(context, fileUri)
                         scope.launch { MainActivity.nearbyServer?.stop() }.invokeOnCompletion {
+                            devices.clear()
+                            devices.addAll(discovery.getDevices())
                             navController.navigate("send")
                         }
                     }
@@ -149,6 +153,8 @@ fun StartView(userPreferencesManager: UserPreferencesManager, discovery: Discove
                     if (imageUri != null) {
                         selectedFileUri.value = getPathFromUri(context, imageUri)
                         scope.launch { MainActivity.nearbyServer?.stop() }.invokeOnCompletion {
+                            devices.clear()
+                            devices.addAll(discovery.getDevices())
                             navController.navigate("send")
                         }
                     }

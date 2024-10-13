@@ -33,7 +33,6 @@ fun SendView(devices: List<Device>, selectedFileUri: String, shouldTerminate: Bo
 
     val context = LocalContext.current
 
-
     Scaffold(
         modifier = Modifier
             .background(Color.Transparent)

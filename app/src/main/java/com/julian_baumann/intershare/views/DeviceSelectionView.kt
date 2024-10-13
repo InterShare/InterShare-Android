@@ -1,5 +1,6 @@
 package com.julian_baumann.intershare.views
 
+import android.view.HapticFeedbackConstants
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -14,6 +15,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -47,6 +50,8 @@ fun getReadableDeviceType(device: Device): String {
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun DeviceSelectionView(devices: List<Device>, selectedFileUri: String) {
+    val displayedDevices = remember { mutableSetOf<String>() }
+
     FlowRow(
         horizontalArrangement = Arrangement.spacedBy(5.dp),
         modifier = Modifier
@@ -55,7 +60,12 @@ fun DeviceSelectionView(devices: List<Device>, selectedFileUri: String) {
             .background(Color.Transparent)
     ) {
         devices.forEach { device ->
-            val progress  by remember { mutableStateOf( SendProgress()) }
+            if (!displayedDevices.contains(device.id)) {
+                displayedDevices.add(device.id)
+                LocalHapticFeedback.current.performHapticFeedback(HapticFeedbackType.LongPress)
+            }
+
+            val progress by remember { mutableStateOf( SendProgress()) }
 
             TextButton(
                 onClick = {

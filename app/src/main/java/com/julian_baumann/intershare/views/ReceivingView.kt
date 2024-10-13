@@ -159,7 +159,7 @@ fun ReceiveContentView(progress: ReceiveProgress, navController: NavController, 
                                 .height(60.dp),
                             colors = ButtonDefaults.filledTonalButtonColors(containerColor = Color(0xFFEF5350)),
                             onClick = {
-                                connectionRequest?.close()
+                                connectionRequest?.cancel()
                                 navController.popBackStack()
                             }) {
                             Text("Cancel")
