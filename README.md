@@ -1,6 +1,7 @@
 <div align="center">
-    <img align="center" src="./assets/screenshot-start.png" width="300" />
-    <img align="center" src="./assets/screenshot-send.png" width="300" />
+    <img align="center" src="./assets/screenshot-receive.png" width="200" />
+    <img align="center" src="./assets/screenshot-start.png" width="220" />
+    <img align="center" src="./assets/screenshot-send.png" width="200" />
 </div>
 
 <br />
