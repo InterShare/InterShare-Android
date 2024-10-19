@@ -2,11 +2,12 @@ package com.julian_baumann.intershare.views
 
 import android.app.DownloadManager
 import android.content.Intent
-import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -29,6 +30,9 @@ import com.julian_baumann.data_rct.ConnectionRequest
 import com.julian_baumann.data_rct.ReceiveProgressState
 import com.julian_baumann.intershare.ReceiveProgress
 import com.julian_baumann.intershare.toHumanReadableSize
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,6 +53,16 @@ fun ReceiveContentView(progress: ReceiveProgress, navController: NavController, 
                     containerColor = Color.Transparent,
                     titleContentColor = MaterialTheme.colorScheme.secondary
                 ),
+                navigationIcon = {
+                    if (navController.previousBackStackEntry != null) {
+                        IconButton(onClick = { navController.navigateUp() }) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Back"
+                            )
+                        }
+                    }
+                },
                 title = {
                     Text(
                         "Receiving",
@@ -95,23 +109,23 @@ fun ReceiveContentView(progress: ReceiveProgress, navController: NavController, 
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.4f),
                 ),
-                modifier = Modifier.padding(0.dp, 0.dp, 0.dp, 50.dp)
+                modifier = Modifier.padding(0.dp, 0.dp, 0.dp, 50.dp).fillMaxWidth()
             ) {
                 Text(
-                    modifier = Modifier.padding(20.dp),
-                    text = "Name: ${connectionRequest?.getFileTransferIntent()?.fileName ?: "Unknown file"}",
+                    modifier = Modifier.padding(20.dp, 20.dp, 20.dp, 0.dp),
+                    text = connectionRequest?.getFileTransferIntent()?.fileName ?: "Unknown file",
                     style = TextStyle(
-                        lineBreak = LineBreak.Paragraph
+                        lineBreak = LineBreak.Paragraph,
+                        fontWeight = FontWeight.Bold
                     )
                 )
 
-                HorizontalDivider()
-
                 Text(
-                    modifier = Modifier.padding(20.dp),
+                    modifier = Modifier.padding(20.dp).alpha(0.6f),
                     text = "Size: ${toHumanReadableSize(connectionRequest?.getFileTransferIntent()?.fileSize)}",
                     style = TextStyle(
-                        lineBreak = LineBreak.Paragraph
+                        lineBreak = LineBreak.Paragraph,
+                        fontWeight = FontWeight.Bold
                     )
                 )
             }
@@ -159,7 +173,9 @@ fun ReceiveContentView(progress: ReceiveProgress, navController: NavController, 
                                 .height(60.dp),
                             colors = ButtonDefaults.filledTonalButtonColors(containerColor = Color(0xFFEF5350)),
                             onClick = {
-                                connectionRequest?.cancel()
+                                CoroutineScope(Dispatchers.Default).launch {
+                                    connectionRequest?.cancel()
+                                }
                                 navController.popBackStack()
                             }) {
                             Text("Cancel")

@@ -1,5 +1,6 @@
 package com.julian_baumann.intershare
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
@@ -8,6 +9,7 @@ import java.io.FileOutputStream
 import kotlin.math.log10
 import kotlin.math.pow
 
+@SuppressLint("DefaultLocale")
 fun toHumanReadableSize(bytes: ULong?): String {
     if (bytes == 0UL || bytes == null) {
         return "0 B"

@@ -1,23 +1,22 @@
 package com.julian_baumann.intershare.views
 
-import android.view.HapticFeedbackConstants
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
@@ -77,6 +76,8 @@ fun DeviceSelectionView(devices: List<Device>, selectedFileUri: String) {
                         }
                     }
                 },
+                shape = RoundedCornerShape(21.dp),
+                colors = ButtonDefaults.textButtonColors().copy(contentColor = LocalContentColor.current),
                 modifier = Modifier.background(Color.Transparent)
             ) {
                 Column(
@@ -92,7 +93,7 @@ fun DeviceSelectionView(devices: List<Device>, selectedFileUri: String) {
                         Box(
                             modifier = Modifier
                                 .size(57.dp)
-                                .background(Color.LightGray, CircleShape)
+                                .background(MaterialTheme.colorScheme.secondary, CircleShape)
                                 .padding(0.dp),
                             contentAlignment = Alignment.Center
                         ) {
@@ -104,6 +105,7 @@ fun DeviceSelectionView(devices: List<Device>, selectedFileUri: String) {
                                 Text(
                                     text = device.name.take(1).uppercase(),
                                     fontWeight = FontWeight.Bold,
+                                    fontFamily = FontFamily.Monospace,
                                     fontSize = 25.sp,
                                     color = Color.Black
                                 )
@@ -117,17 +119,11 @@ fun DeviceSelectionView(devices: List<Device>, selectedFileUri: String) {
                     ) {
                         Text(
                             text = device.name,
-                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center,
                             fontSize = 12.sp,
                             lineHeight = 1.em,
-                            maxLines = 1,
+                            maxLines = 2,
                             overflow = TextOverflow.Ellipsis
-                        )
-                        Text(
-                            text = getReadableDeviceType(device),
-                            fontSize = 12.sp,
-                            modifier = Modifier.alpha(0.6F),
-                            lineHeight = 1.em
                         )
                     }
                 }

@@ -3,6 +3,8 @@ package com.julian_baumann.intershare.views
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -43,6 +45,16 @@ fun SendView(devices: List<Device>, selectedFileUri: String, shouldTerminate: Bo
                     containerColor = Color.Transparent,
                     titleContentColor = MaterialTheme.colorScheme.secondary
                 ),
+                navigationIcon = {
+                    if (navController.previousBackStackEntry != null) {
+                            IconButton(onClick = { navController.navigateUp() }) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                    contentDescription = "Back"
+                                )
+                            }
+                    }
+                },
                 title = {
                     Text(
                         "Send to",
@@ -58,7 +70,7 @@ fun SendView(devices: List<Device>, selectedFileUri: String, shouldTerminate: Bo
         }
 
         Column(modifier = Modifier
-            .padding(20.dp, innerPadding.calculateTopPadding(), 20.dp, innerPadding.calculateBottomPadding())
+            .padding(10.dp, innerPadding.calculateTopPadding(), 10.dp, innerPadding.calculateBottomPadding())
         ) {
             if (!bluetoothEnabled) {
                 Column(

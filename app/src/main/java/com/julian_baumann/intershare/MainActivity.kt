@@ -14,30 +14,24 @@ import android.os.Bundle
 import android.os.Environment
 import android.os.Parcelable
 import android.util.Log
-import android.view.HapticFeedbackConstants
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.*
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStore
-import androidx.navigation.NavController
 import androidx.navigation.NavHostController
-import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navArgument
 import com.julian_baumann.data_rct.*
 import com.julian_baumann.intershare.ui.theme.DataRCTTheme
 import com.julian_baumann.intershare.views.ReceiveContentView
@@ -51,14 +45,13 @@ import kotlinx.coroutines.runBlocking
 import java.io.File
 import java.util.*
 
-
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
 
-@OptIn(ExperimentalMaterial3Api::class)
 class MainActivity : ComponentActivity(), NearbyConnectionDelegate, DiscoveryDelegate {
     companion object {
         var nearbyServer: NearbyServer? = null
         var currentDevice: Device? = null
+        var serverStarted = false
 
         private var currentConnectionRequest: ConnectionRequest? = null
         private var showConnectionRequest by mutableStateOf(false)
@@ -72,7 +65,7 @@ class MainActivity : ComponentActivity(), NearbyConnectionDelegate, DiscoveryDel
         private var bluetoothConnectPermissionGranted = false
         private var bluetoothAdvertisePermissionGranted = false
         private var bluetoothScanPermissionGranted = false
-        private var accessLocationPermissionGranted = false
+        private var accessNearbyDevicesPermissionGranted = false
 
         fun startAdvertising() {
             CoroutineScope(Dispatchers.Main).launch {
@@ -82,23 +75,19 @@ class MainActivity : ComponentActivity(), NearbyConnectionDelegate, DiscoveryDel
     }
     private lateinit var navController: NavHostController
 
-    init {
-        Log.i("InterShare", "test")
-    }
-
     private val bleConnectPermissionActivity = registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted: Boolean ->
         bluetoothConnectPermissionGranted = isGranted
         bleAdvertisePermissionActivity.launch(Manifest.permission.BLUETOOTH_ADVERTISE)
     }
 
-    private val accessLocationPermissionActivity = registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted: Boolean ->
-        accessLocationPermissionGranted = isGranted
+    private val accessNearbyDevicesPermissionActivity = registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted: Boolean ->
+        accessNearbyDevicesPermissionGranted = isGranted
         startServer()
     }
 
     private val bleAdvertisePermissionActivity = registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted: Boolean ->
         bluetoothAdvertisePermissionGranted = isGranted
-        accessLocationPermissionActivity.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+        accessNearbyDevicesPermissionActivity.launch(Manifest.permission.BLUETOOTH_SCAN)
     }
 
     private val bleScanPermissionActivity = registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted: Boolean ->
@@ -110,7 +99,11 @@ class MainActivity : ComponentActivity(), NearbyConnectionDelegate, DiscoveryDel
         if (!bluetoothConnectPermissionGranted
             || !bluetoothAdvertisePermissionGranted
             || !bluetoothScanPermissionGranted
-            || !accessLocationPermissionGranted) {
+            || !accessNearbyDevicesPermissionGranted) {
+            return
+        }
+
+        if (serverStarted) {
             return
         }
 
@@ -133,6 +126,7 @@ class MainActivity : ComponentActivity(), NearbyConnectionDelegate, DiscoveryDel
 
         if (deviceName != null) {
             startAdvertising()
+            serverStarted = true
         }
     }
 
@@ -171,7 +165,6 @@ class MainActivity : ComponentActivity(), NearbyConnectionDelegate, DiscoveryDel
         showConnectionRequest = true
     }
 
-    @OptIn(ExperimentalMaterial3Api::class)
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
@@ -245,16 +238,16 @@ class MainActivity : ComponentActivity(), NearbyConnectionDelegate, DiscoveryDel
                         startDestination = startDestination
                     ) {
                         composable(route = "start") {
+                            if (isBluetoothEnabled) {
+                                discovery.stopScanning()
+                            }
+
                             StartView(userPreferencesManager!!, discovery, devices, sharedFilePath, navController, selectedFileUri, isBluetoothEnabled)
                         }
 
                         composable(
                             route = "send",
                         ) {
-                            CoroutineScope(Dispatchers.Default).launch {
-                                nearbyServer?.stop()
-                            }
-
                             if (isBluetoothEnabled) {
                                 discovery.startScanning()
                             }
