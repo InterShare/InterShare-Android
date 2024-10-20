@@ -1,7 +1,6 @@
 package com.julian_baumann.intershare.views
 
 import android.app.DownloadManager
-import android.bluetooth.BluetoothAdapter
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageInfo
@@ -11,8 +10,8 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.BluetoothDisabled
 import androidx.compose.material.icons.filled.QuestionMark
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -31,7 +30,6 @@ import androidx.navigation.NavHostController
 import com.julian_baumann.data_rct.Device
 import com.julian_baumann.data_rct.Discovery
 import com.julian_baumann.intershare.MainActivity
-import com.julian_baumann.intershare.MainActivity.Companion
 import com.julian_baumann.intershare.UserPreferencesManager
 import com.julian_baumann.intershare.getPathFromUri
 import kotlinx.coroutines.launch
@@ -126,6 +124,31 @@ fun StartView(userPreferencesManager: UserPreferencesManager, discovery: Discove
                 verticalArrangement = Arrangement.Bottom,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
+                if (bluetoothEnabled) {
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                        ),
+                        shape = RoundedCornerShape(50.dp),
+                        modifier = Modifier.padding(10.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(10.dp)) {
+//                        Icon(
+//                            imageVector = Icons.Filled.CheckCircle,
+//                            contentDescription = "check",
+//                            tint = Color(0xFF23BF04),
+//                            modifier = Modifier.padding(horizontal = 10.dp)
+//                        )
+                            Text(
+                                color = Color(0xFF23BF04),
+                                text = "Ready to receive",
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 10.dp).alpha(0.6f)
+                            )
+                        }
+                    }
+                }
+
                 Text(
                     text = "Share",
                     fontWeight = FontWeight.Bold,

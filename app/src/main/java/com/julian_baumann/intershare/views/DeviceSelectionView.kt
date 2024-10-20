@@ -93,7 +93,7 @@ fun DeviceSelectionView(devices: List<Device>, selectedFileUri: String) {
                         Box(
                             modifier = Modifier
                                 .size(57.dp)
-                                .background(MaterialTheme.colorScheme.secondary, CircleShape)
+                                .background(Color.LightGray, CircleShape)
                                 .padding(0.dp),
                             contentAlignment = Alignment.Center
                         ) {

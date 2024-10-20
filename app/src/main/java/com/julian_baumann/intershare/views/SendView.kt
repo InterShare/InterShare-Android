@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -102,20 +103,23 @@ fun SendView(devices: List<Device>, selectedFileUri: String, shouldTerminate: Bo
                     ),
                     modifier = Modifier.padding(20.dp).fillMaxWidth()
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        CircularProgressIndicator(
-                            modifier = Modifier
-                                .padding(10.dp)
-                                .size(30.dp),
-                            color = MaterialTheme.colorScheme.secondary,
-                            trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(10.dp)) {
+                        Icon(
+                            imageVector = Icons.Default.VisibilityOff,
+                            contentDescription = "Eye",
+                            modifier = Modifier.padding(horizontal = 10.dp)
                         )
-
-                        Text(
-                            modifier = Modifier.alpha(0.5f),
-                            fontWeight = FontWeight.Bold,
-                            text = "Scanning for nearby devices"
-                        )
+                        Column {
+                            Text(
+                                modifier = Modifier.alpha(0.8f),
+                                fontWeight = FontWeight.Bold,
+                                text = "Don't see the right device?"
+                            )
+                            Text(
+                                modifier = Modifier.alpha(0.5f),
+                                text = "Make sure the receiver has the InterShare app open on their device."
+                            )
+                        }
                     }
                 }
             }
