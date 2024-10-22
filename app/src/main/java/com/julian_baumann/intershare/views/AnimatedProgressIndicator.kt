@@ -16,7 +16,7 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
-import com.julian_baumann.data_rct.SendProgressState
+import com.julian_baumann.intershare_sdk.SendProgressState
 import com.julian_baumann.intershare.SendProgress
 
 

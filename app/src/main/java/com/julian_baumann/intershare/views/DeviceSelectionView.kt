@@ -21,8 +21,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
-import com.julian_baumann.data_rct.Device
-import com.julian_baumann.data_rct.SendProgressState
+import com.julian_baumann.intershare_sdk.Device
+import com.julian_baumann.intershare_sdk.SendProgressState
 import com.julian_baumann.intershare.MainActivity
 import com.julian_baumann.intershare.SendProgress
 import com.julian_baumann.intershare.ui.theme.Purple80

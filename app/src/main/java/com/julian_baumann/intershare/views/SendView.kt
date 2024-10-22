@@ -18,8 +18,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import androidx.navigation.NavHostController
-import com.julian_baumann.data_rct.Device
-import com.julian_baumann.data_rct.Discovery
+import com.julian_baumann.intershare_sdk.Device
+import com.julian_baumann.intershare_sdk.Discovery
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

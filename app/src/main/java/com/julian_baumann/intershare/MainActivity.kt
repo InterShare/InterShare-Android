@@ -32,11 +32,11 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.julian_baumann.data_rct.*
 import com.julian_baumann.intershare.ui.theme.DataRCTTheme
 import com.julian_baumann.intershare.views.ReceiveContentView
 import com.julian_baumann.intershare.views.SendView
 import com.julian_baumann.intershare.views.StartView
+import com.julian_baumann.intershare_sdk.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -66,10 +66,18 @@ class MainActivity : ComponentActivity(), NearbyConnectionDelegate, DiscoveryDel
         private var bluetoothAdvertisePermissionGranted = false
         private var bluetoothScanPermissionGranted = false
         private var accessNearbyDevicesPermissionGranted = false
+        private var bluetoothManager: BluetoothManager? = null
+        private var appWasPaused = false
 
         fun startAdvertising() {
             CoroutineScope(Dispatchers.Main).launch {
-                nearbyServer?.start()
+                val isBluetoothEnabled = bluetoothManager!!.adapter.isEnabled
+
+                if (isBluetoothEnabled) {
+                    Log.i("InterShare", "Starting advertisement")
+                    nearbyServer?.start()
+                    serverStarted = true
+                }
             }
         }
     }
@@ -126,7 +134,6 @@ class MainActivity : ComponentActivity(), NearbyConnectionDelegate, DiscoveryDel
 
         if (deviceName != null) {
             startAdvertising()
-            serverStarted = true
         }
     }
 
@@ -135,6 +142,7 @@ class MainActivity : ComponentActivity(), NearbyConnectionDelegate, DiscoveryDel
 
         CoroutineScope(Dispatchers.Main).launch {
             nearbyServer?.stop()
+            appWasPaused = true
         }
     }
 
@@ -142,7 +150,10 @@ class MainActivity : ComponentActivity(), NearbyConnectionDelegate, DiscoveryDel
         super.onResume()
 
         CoroutineScope(Dispatchers.Main).launch {
-            nearbyServer?.start()
+            if (serverStarted && appWasPaused) {
+                startAdvertising()
+                appWasPaused = false
+            }
         }
     }
 
@@ -169,6 +180,7 @@ class MainActivity : ComponentActivity(), NearbyConnectionDelegate, DiscoveryDel
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        bluetoothManager = getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
 
         userPreferencesManager = UserPreferencesManager(baseContext)
         bleScanPermissionActivity.launch(Manifest.permission.BLUETOOTH_SCAN)
@@ -178,8 +190,7 @@ class MainActivity : ComponentActivity(), NearbyConnectionDelegate, DiscoveryDel
             val discovery = remember { Discovery(baseContext, this) }
             val isExternalShare = remember { mutableStateOf(false) }
             var startDestination = remember { "start" }
-            val bluetoothManager = baseContext.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
-            val bluetoothAdapter = bluetoothManager.adapter
+            val bluetoothAdapter = bluetoothManager!!.adapter
             var isBluetoothEnabled by remember { mutableStateOf(bluetoothAdapter.isEnabled) }
 
             // Update the state dynamically whenever BLE is enabled or disabled
@@ -193,15 +204,19 @@ class MainActivity : ComponentActivity(), NearbyConnectionDelegate, DiscoveryDel
                             if (isBluetoothEnabled) {
                                 CoroutineScope(Dispatchers.Default).launch {
                                     if (navController.currentDestination?.route == "send") {
-                                        nearbyServer?.stop()
+                                        if (serverStarted) {
+                                            nearbyServer?.stop()
+                                        }
+
                                         discovery.startScanning()
                                     } else {
-                                        nearbyServer?.start()
+                                        startAdvertising()
                                     }
                                 }
                             } else {
                                 CoroutineScope(Dispatchers.Default).launch {
                                     nearbyServer?.stop()
+                                    serverStarted = false
                                 }
                             }
                         }
@@ -238,17 +253,17 @@ class MainActivity : ComponentActivity(), NearbyConnectionDelegate, DiscoveryDel
                         startDestination = startDestination
                     ) {
                         composable(route = "start") {
-                            if (isBluetoothEnabled) {
+                            if (isBluetoothEnabled && serverStarted) {
                                 discovery.stopScanning()
                             }
 
-                            StartView(userPreferencesManager!!, discovery, devices, sharedFilePath, navController, selectedFileUri, isBluetoothEnabled)
+                            StartView(userPreferencesManager!!, discovery, devices, sharedFilePath, navController, selectedFileUri, isBluetoothEnabled, serverStarted)
                         }
 
                         composable(
                             route = "send",
                         ) {
-                            if (isBluetoothEnabled) {
+                            if (isBluetoothEnabled && serverStarted) {
                                 discovery.startScanning()
                             }
 

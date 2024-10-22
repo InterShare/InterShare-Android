@@ -27,8 +27,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import androidx.navigation.NavHostController
-import com.julian_baumann.data_rct.Device
-import com.julian_baumann.data_rct.Discovery
+import com.julian_baumann.intershare_sdk.Device
+import com.julian_baumann.intershare_sdk.Discovery
 import com.julian_baumann.intershare.MainActivity
 import com.julian_baumann.intershare.UserPreferencesManager
 import com.julian_baumann.intershare.getPathFromUri
@@ -45,7 +45,7 @@ fun getAppVersion(context: Context): String {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun StartView(userPreferencesManager: UserPreferencesManager, discovery: Discovery, devices: SnapshotStateList<Device>, sharedFilePath: String?, navController: NavHostController, selectedFileUri: MutableState<String?>, bluetoothEnabled: Boolean) {
+fun StartView(userPreferencesManager: UserPreferencesManager, discovery: Discovery, devices: SnapshotStateList<Device>, sharedFilePath: String?, navController: NavHostController, selectedFileUri: MutableState<String?>, bluetoothEnabled: Boolean, serverStarted: Boolean) {
     val context = LocalContext.current
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
 
@@ -105,7 +105,7 @@ fun StartView(userPreferencesManager: UserPreferencesManager, discovery: Discove
             }
 
             Column(modifier = Modifier.padding(15.dp, innerPadding.calculateTopPadding() - 10.dp, 15.dp, 0.dp)) {
-                NameChangeDialog(userPreferencesManager, bluetoothEnabled)
+                NameChangeDialog(userPreferencesManager, bluetoothEnabled, serverStarted)
             }
 
             if (!bluetoothEnabled) {
@@ -163,11 +163,9 @@ fun StartView(userPreferencesManager: UserPreferencesManager, discovery: Discove
                 ) { fileUri ->
                     if (fileUri != null) {
                         selectedFileUri.value = getPathFromUri(context, fileUri)
-                        scope.launch { MainActivity.nearbyServer?.stop() }.invokeOnCompletion {
-                            devices.clear()
-                            devices.addAll(discovery.getDevices())
-                            navController.navigate("send")
-                        }
+                        devices.clear()
+                        devices.addAll(discovery.getDevices())
+                        navController.navigate("send")
                     }
                 }
                 val pickVisualMediaLauncher = rememberLauncherForActivityResult(
@@ -175,11 +173,9 @@ fun StartView(userPreferencesManager: UserPreferencesManager, discovery: Discove
                 ) { imageUri ->
                     if (imageUri != null) {
                         selectedFileUri.value = getPathFromUri(context, imageUri)
-                        scope.launch { MainActivity.nearbyServer?.stop() }.invokeOnCompletion {
-                            devices.clear()
-                            devices.addAll(discovery.getDevices())
-                            navController.navigate("send")
-                        }
+                        devices.clear()
+                        devices.addAll(discovery.getDevices())
+                        navController.navigate("send")
                     }
                 }
 
@@ -215,7 +211,6 @@ fun StartView(userPreferencesManager: UserPreferencesManager, discovery: Discove
                 Spacer(modifier = Modifier.height(10.dp))
 
                 FilledTonalButton(
-                    enabled = bluetoothEnabled,
                     onClick = { context.startActivity(Intent(DownloadManager.ACTION_VIEW_DOWNLOADS)) },
                     modifier = Modifier
                         .fillMaxWidth()

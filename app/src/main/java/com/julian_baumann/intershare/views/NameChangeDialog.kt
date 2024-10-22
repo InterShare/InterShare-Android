@@ -3,17 +3,12 @@ package com.julian_baumann.intershare.views
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Smartphone
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.text.toUpperCase
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.julian_baumann.intershare.MainActivity
@@ -22,17 +17,15 @@ import kotlinx.coroutines.launch
 import java.util.*
 
 @Composable
-fun NameChangeDialog(userPreferencesManager: UserPreferencesManager, enabled: Boolean) {
+fun NameChangeDialog(userPreferencesManager: UserPreferencesManager, enabled: Boolean, serverStarted: Boolean) {
     val scope = rememberCoroutineScope()
     var showDialog by remember { mutableStateOf(false) }
     var userName by remember { mutableStateOf("") }
     var saveButtonEnabled by remember { mutableStateOf(false) }
-    var initialDeviceNameSet by remember { mutableStateOf(false) }
 
     // Listen to userNameFlow to update userName state
     LaunchedEffect(key1 = true) {
         userPreferencesManager.deviceNameFlow.collect { name ->
-            initialDeviceNameSet = name != null
             userName = name ?: ""
             saveButtonEnabled = userName.length >= 3
 
@@ -106,7 +99,7 @@ fun NameChangeDialog(userPreferencesManager: UserPreferencesManager, enabled: Bo
                                 MainActivity.currentDevice!!.name = userName
                                 MainActivity.nearbyServer?.changeDevice(MainActivity.currentDevice!!)
 
-                                if (!initialDeviceNameSet) {
+                                if (!serverStarted) {
                                     MainActivity.startAdvertising()
                                 }
                             }

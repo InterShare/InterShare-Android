@@ -26,8 +26,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import androidx.navigation.NavController
-import com.julian_baumann.data_rct.ConnectionRequest
-import com.julian_baumann.data_rct.ReceiveProgressState
+import com.julian_baumann.intershare_sdk.ConnectionRequest
+import com.julian_baumann.intershare_sdk.ReceiveProgressState
 import com.julian_baumann.intershare.ReceiveProgress
 import com.julian_baumann.intershare.toHumanReadableSize
 import kotlinx.coroutines.CoroutineScope

@@ -21,8 +21,7 @@ dependencyResolutionManagement {
     repositories {
         maven {
             name = "GitHubPackages"
-            url = uri("https://maven.pkg.github.com/julian-baumann/*")
-
+            url = uri("https://maven.pkg.github.com/InterShare/InterShareSDK")
             credentials {
                 username = githubProperties.getProperty("gpr.user")
                 password = githubProperties.getProperty("gpr.token")
