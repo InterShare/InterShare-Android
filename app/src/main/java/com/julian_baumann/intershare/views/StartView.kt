@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -45,7 +46,7 @@ fun getAppVersion(context: Context): String {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun StartView(userPreferencesManager: UserPreferencesManager, discovery: Discovery, devices: SnapshotStateList<Device>, sharedFilePath: String?, navController: NavHostController, selectedFileUri: MutableState<String?>, bluetoothEnabled: Boolean, serverStarted: Boolean) {
+fun StartView(userPreferencesManager: UserPreferencesManager, discovery: Discovery, devices: SnapshotStateList<Device>, navController: NavHostController, selectedFileUri: MutableState<List<String>>, bluetoothEnabled: Boolean, serverStarted: Boolean) {
     val context = LocalContext.current
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
 
@@ -158,25 +159,26 @@ fun StartView(userPreferencesManager: UserPreferencesManager, discovery: Discove
                         .alpha(0.8F)
                 )
 
-                val pickFileLauncher = rememberLauncherForActivityResult(
-                    ActivityResultContracts.GetContent()
-                ) { fileUri ->
-                    if (fileUri != null) {
-                        selectedFileUri.value = getPathFromUri(context, fileUri)
+                fun processUris(uris: List<Uri>, context: Context, discovery: Discovery, navController: NavHostController, selectedFileUri: MutableState<List<String>>, devices: MutableList<Device>) {
+                    val filePaths = uris.mapNotNull { getPathFromUri(context, it) }
+
+                    if (filePaths.isNotEmpty()) {
+                        selectedFileUri.value = filePaths
                         devices.clear()
                         devices.addAll(discovery.getDevices())
                         navController.navigate("send")
                     }
                 }
+
+                val pickFileLauncher = rememberLauncherForActivityResult(
+                    ActivityResultContracts.GetMultipleContents()
+                ) { fileUris ->
+                    processUris(fileUris, context, discovery, navController, selectedFileUri, devices)
+                }
                 val pickVisualMediaLauncher = rememberLauncherForActivityResult(
-                    ActivityResultContracts.PickVisualMedia()
-                ) { imageUri ->
-                    if (imageUri != null) {
-                        selectedFileUri.value = getPathFromUri(context, imageUri)
-                        devices.clear()
-                        devices.addAll(discovery.getDevices())
-                        navController.navigate("send")
-                    }
+                    ActivityResultContracts.PickMultipleVisualMedia()
+                ) { imageUris ->
+                    processUris(imageUris, context, discovery, navController, selectedFileUri, devices)
                 }
 
                 Row(

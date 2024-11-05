@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -38,6 +39,8 @@ import kotlinx.coroutines.launch
 @Composable
 fun ReceiveContentView(progress: ReceiveProgress, navController: NavController, connectionRequest: ConnectionRequest?) {
     val context = LocalContext.current
+    val fileTransferIntent = remember { connectionRequest?.getFileTransferIntent() }
+    val sender = remember { connectionRequest?.getSender() }
 
     BackHandler(true) {
         navController.popBackStack()
@@ -102,7 +105,7 @@ fun ReceiveContentView(progress: ReceiveProgress, navController: NavController, 
                 fontSize = 25.sp,
                 modifier = Modifier.padding(0.dp, 0.dp, 0.dp, 30.dp).alpha(0.7f),
                 fontWeight = FontWeight.Bold,
-                text = "From ${connectionRequest?.getSender()?.name}"
+                text = "From ${sender?.name}"
             )
 
             Card(
@@ -113,7 +116,7 @@ fun ReceiveContentView(progress: ReceiveProgress, navController: NavController, 
             ) {
                 Text(
                     modifier = Modifier.padding(20.dp, 20.dp, 20.dp, 0.dp),
-                    text = connectionRequest?.getFileTransferIntent()?.fileName ?: "Unknown file",
+                    text = fileTransferIntent?.fileName ?: "${fileTransferIntent?.fileCount} files",
                     style = TextStyle(
                         lineBreak = LineBreak.Paragraph,
                         fontWeight = FontWeight.Bold
@@ -131,19 +134,32 @@ fun ReceiveContentView(progress: ReceiveProgress, navController: NavController, 
             }
 
             when (val state = progress.state) {
-                is ReceiveProgressState.Receiving, ReceiveProgressState.Finished -> {
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(30.dp)),
-                    ) {
-                        Text(modifier = Modifier.fillMaxWidth(),
-                            fontSize = 40.sp,
-                            fontFamily = FontFamily.Monospace,
-                            fontWeight = FontWeight.Bold,
-                            textAlign = TextAlign.Center,
-                            text = "%.0f".format(if (state is ReceiveProgressState.Receiving) state.progress.toFloat() * 100 else 100f) + "%"
-                        )
-                    }
+                is ReceiveProgressState.Receiving -> {
+                    Text(modifier = Modifier.fillMaxWidth(),
+                        fontSize = 40.sp,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center,
+                        text = "%.0f".format(if (state is ReceiveProgressState.Receiving) state.progress.toFloat() * 100 else 100f) + "%"
+                    )
+                }
+                is ReceiveProgressState.Extracting -> {
+                    Text(modifier = Modifier.fillMaxWidth(),
+                        fontSize = 30.sp,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center,
+                        text = "Extracting..."
+                    )
+                }
+                is ReceiveProgressState.Finished -> {
+                    Text(modifier = Modifier.fillMaxWidth(),
+                        fontSize = 30.sp,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center,
+                        text = "Finished"
+                    )
                 }
                 else -> {
                     Column(

@@ -27,9 +27,9 @@ fun NameChangeDialog(userPreferencesManager: UserPreferencesManager, enabled: Bo
     LaunchedEffect(key1 = true) {
         userPreferencesManager.deviceNameFlow.collect { name ->
             userName = name ?: ""
-            saveButtonEnabled = userName.length >= 3
+            saveButtonEnabled = userName.trim().isNotEmpty()
 
-            if (userName.length < 3) {
+            if (userName.trim().isEmpty()) {
                 showDialog = true
             }
         }
@@ -82,7 +82,7 @@ fun NameChangeDialog(userPreferencesManager: UserPreferencesManager, enabled: Bo
                         singleLine = true,
                         onValueChange = { newName ->
                             userName = newName
-                            saveButtonEnabled = userName.length >= 3
+                            saveButtonEnabled = userName.trim().isNotEmpty()
                         },
                         label = { Text("Device Name") }
                     )

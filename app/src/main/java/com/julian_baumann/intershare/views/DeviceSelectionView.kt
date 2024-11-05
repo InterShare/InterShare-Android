@@ -11,6 +11,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -30,25 +31,22 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
-fun getReadableDeviceType(device: Device): String {
-    when (device.deviceType) {
-        1 -> {
-            return "Phone"
-        }
-        2 -> {
-            return "Tablet"
-        }
-        3 -> {
-            return "Computer"
-        }
+fun getCurrentStateText(progress: SendProgress): String {
+    return when (progress.state) {
+        SendProgressState.Cancelled -> "Cancelled"
+        SendProgressState.Compressing -> "Compressing"
+        SendProgressState.Connecting -> "Connecting"
+        SendProgressState.Declined -> "Declined"
+        SendProgressState.Finished -> "Finished"
+        SendProgressState.Requesting -> "Requesting"
+        is SendProgressState.Transferring -> "Sending"
+        else -> ""
     }
-
-    return "Unknown"
 }
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun DeviceSelectionView(devices: List<Device>, selectedFileUri: String) {
+fun DeviceSelectionView(devices: List<Device>, selectedFileUri: List<String>) {
     val displayedDevices = remember { mutableSetOf<String>() }
 
     FlowRow(
@@ -70,7 +68,7 @@ fun DeviceSelectionView(devices: List<Device>, selectedFileUri: String) {
                 onClick = {
                     CoroutineScope(Dispatchers.IO).launch {
                         try {
-                            MainActivity.nearbyServer?.sendFile(device, selectedFileUri, progress)
+                            MainActivity.nearbyServer?.sendFiles(selectedFileUri, device, progress)
                         } catch (error: Exception) {
                             println(error)
                         }
@@ -124,6 +122,16 @@ fun DeviceSelectionView(devices: List<Device>, selectedFileUri: String) {
                             lineHeight = 1.em,
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis
+                        )
+
+                        Text(
+                            text = getCurrentStateText(progress),
+                            textAlign = TextAlign.Center,
+                            fontSize = 11.sp,
+                            lineHeight = 1.em,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.alpha(0.4f)
                         )
                     }
                 }

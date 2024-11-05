@@ -23,7 +23,7 @@ import com.julian_baumann.intershare_sdk.Discovery
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SendView(devices: List<Device>, selectedFileUri: String, shouldTerminate: Boolean, navController: NavHostController, bluetoothEnabled: Boolean, discovery: Discovery, finishActivity: () -> Unit) {
+fun SendView(devices: List<Device>, selectedFileUris: List<String>, shouldTerminate: Boolean, navController: NavHostController, bluetoothEnabled: Boolean, discovery: Discovery, finishActivity: () -> Unit) {
     BackHandler {
         discovery.stopScanning()
 
@@ -84,7 +84,7 @@ fun SendView(devices: List<Device>, selectedFileUri: String, shouldTerminate: Bo
 
             DeviceSelectionView(
                 devices,
-                selectedFileUri
+                selectedFileUris
             )
         }
 

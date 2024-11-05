@@ -19,6 +19,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
@@ -32,7 +33,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.julian_baumann.intershare.ui.theme.DataRCTTheme
+import com.julian_baumann.intershare.ui.theme.InterShareTheme
 import com.julian_baumann.intershare.views.ReceiveContentView
 import com.julian_baumann.intershare.views.SendView
 import com.julian_baumann.intershare.views.StartView
@@ -59,8 +60,7 @@ class MainActivity : ComponentActivity(), NearbyConnectionDelegate, DiscoveryDel
         private var receiveProgress: ReceiveProgress? = null
         private var devices = mutableStateListOf<Device>()
         private var userPreferencesManager by mutableStateOf<UserPreferencesManager?>(null)
-        private var selectedFileUri = mutableStateOf<String?>(null)
-        private var sharedFilePath: String? = null
+        private var selectedFileUris = mutableStateOf<List<String>>(listOf())
 
         private var bluetoothConnectPermissionGranted = false
         private var bluetoothAdvertisePermissionGranted = false
@@ -176,6 +176,23 @@ class MainActivity : ComponentActivity(), NearbyConnectionDelegate, DiscoveryDel
         showConnectionRequest = true
     }
 
+    fun registerFilesWithSystem(files: List<String>) {
+        val filePaths = mutableListOf<String>()
+
+        for (file in files) {
+            filePaths.add(File(file).absolutePath)
+        }
+
+        MediaScannerConnection.scanFile(
+            baseContext,
+            filePaths.toTypedArray(),
+            null
+        ) { path, uri ->
+            Log.i("MediaScanner", "Scanned $path:")
+            Log.i("MediaScanner", "-> uri=$uri")
+        }
+    }
+
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
@@ -227,9 +244,9 @@ class MainActivity : ComponentActivity(), NearbyConnectionDelegate, DiscoveryDel
                 baseContext.registerReceiver(bluetoothStateReceiver, filter)
             }
 
-            DataRCTTheme {
-                when {
-                    intent?.action == Intent.ACTION_SEND -> {
+            InterShareTheme {
+                when(intent?.action) {
+                    Intent.ACTION_SEND -> {
                         val uri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                             intent.getParcelableExtra(Intent.EXTRA_STREAM, Parcelable::class.java) as? Uri
                         } else {
@@ -237,7 +254,33 @@ class MainActivity : ComponentActivity(), NearbyConnectionDelegate, DiscoveryDel
                         }
 
                         uri?.let {
-                            selectedFileUri.value = getPathFromUri(baseContext, it)
+                            selectedFileUris.value = listOf(getPathFromUri(baseContext, it)!!)
+                            isExternalShare.value = true
+                            devices.clear()
+                            devices.addAll(discovery.getDevices())
+                            startDestination = "send"
+                        }
+                    }
+
+                    Intent.ACTION_SEND_MULTIPLE -> {
+                        val uris = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                            intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM, Parcelable::class.java)?.filterIsInstance<Uri>()
+                        } else {
+                            intent.getParcelableArrayListExtra<Parcelable>(Intent.EXTRA_STREAM)?.filterIsInstance<Uri>()
+                        }
+
+                        uris?.let {
+                            val listOrUris = mutableListOf<String>()
+
+                            it.forEach { uri ->
+                                val path = getPathFromUri(baseContext, uri)
+
+                                if (path != null) {
+                                    listOrUris.add(path)
+                                }
+                            }
+
+                            selectedFileUris.value = listOrUris.toList()
                             isExternalShare.value = true
                             devices.clear()
                             devices.addAll(discovery.getDevices())
@@ -257,7 +300,7 @@ class MainActivity : ComponentActivity(), NearbyConnectionDelegate, DiscoveryDel
                                 discovery.stopScanning()
                             }
 
-                            StartView(userPreferencesManager!!, discovery, devices, sharedFilePath, navController, selectedFileUri, isBluetoothEnabled, serverStarted)
+                            StartView(userPreferencesManager!!, discovery, devices, navController, selectedFileUris, isBluetoothEnabled, serverStarted)
                         }
 
                         composable(
@@ -267,7 +310,7 @@ class MainActivity : ComponentActivity(), NearbyConnectionDelegate, DiscoveryDel
                                 discovery.startScanning()
                             }
 
-                            SendView(devices, selectedFileUri.value!!, isExternalShare.value, navController, isBluetoothEnabled, discovery, {
+                            SendView(devices, selectedFileUris.value!!, isExternalShare.value, navController, isBluetoothEnabled, discovery, {
                                 finish()
                             })
                         }
@@ -281,12 +324,24 @@ class MainActivity : ComponentActivity(), NearbyConnectionDelegate, DiscoveryDel
                 }
 
                 if (showConnectionRequest && currentConnectionRequest != null) {
+                    val transferIntent = remember { currentConnectionRequest?.getFileTransferIntent() }
+
                     AlertDialog(
                         title = {
-                            Text(text = "${currentConnectionRequest?.getSender()?.name} wants to send you a file")
+                            if (transferIntent?.fileCount == 1UL) {
+                                Text(text = "${currentConnectionRequest?.getSender()?.name} wants to send you a file")
+                            } else {
+                                Text(text = "${currentConnectionRequest?.getSender()?.name} wants to send you ${transferIntent?.fileCount} files")
+                            }
                         },
                         text = {
-                            Text(text = "${currentConnectionRequest?.getFileTransferIntent()?.fileName} (${toHumanReadableSize(currentConnectionRequest?.getFileTransferIntent()?.fileSize)})")
+                            Column {
+                                if (transferIntent?.fileName != null) {
+                                    Text(text = transferIntent.fileName!!)
+                                }
+
+                                Text(text = "Size: ${toHumanReadableSize(transferIntent?.fileSize)}")
+                            }
                         },
                         onDismissRequest = {
                             showConnectionRequest = false
@@ -306,23 +361,11 @@ class MainActivity : ComponentActivity(), NearbyConnectionDelegate, DiscoveryDel
                                     navController.navigate("receive")
 
                                     Thread {
-                                        currentConnectionRequest?.accept()
-                                        val fileName = currentConnectionRequest?.getFileTransferIntent()?.fileName
+                                        val files = currentConnectionRequest?.accept()
 
-                                        val file = File(
-                                            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
-                                            fileName
-                                        )
-
-                                        MediaScannerConnection.scanFile(
-                                            baseContext,
-                                            arrayOf<String>(file.absolutePath),
-                                            null
-                                        ) { path, uri ->
-                                            Log.i("MediaScanner", "Scanned $path:")
-                                            Log.i("MediaScanner", "-> uri=$uri")
+                                        if (files?.isNotEmpty() == true) {
+                                            registerFilesWithSystem(files)
                                         }
-
                                     }.start()
                                 }
                             ) {
