@@ -74,7 +74,7 @@ fun NameChangeDialog(userPreferencesManager: UserPreferencesManager, enabled: Bo
             title = { Text(text = "Name this device") },
             text = {
                 Column {
-                    Text("Nearby devices will discover this device using this name. Must be at least three characters long.", modifier = Modifier.padding(
+                    Text("You will be visible to others with this name.", modifier = Modifier.padding(
                         PaddingValues(bottom = 20.dp)
                     ))
                     TextField(

@@ -28,12 +28,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import androidx.navigation.NavHostController
-import com.julian_baumann.intershare_sdk.Device
-import com.julian_baumann.intershare_sdk.Discovery
-import com.julian_baumann.intershare.MainActivity
 import com.julian_baumann.intershare.UserPreferencesManager
 import com.julian_baumann.intershare.getPathFromUri
-import kotlinx.coroutines.launch
+import com.julian_baumann.intershare.saveLogsToTxtFile
+import com.julian_baumann.intershare_sdk.Device
+import com.julian_baumann.intershare_sdk.Discovery
 
 fun getAppVersion(context: Context): String {
     return try {
@@ -50,8 +49,6 @@ fun StartView(userPreferencesManager: UserPreferencesManager, discovery: Discove
     val context = LocalContext.current
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
 
-    var showDeviceSelectionSheet by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
     var showMenu by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -87,6 +84,14 @@ fun StartView(userPreferencesManager: UserPreferencesManager, discovery: Discove
                                 .padding(horizontal = 16.dp, vertical = 8.dp)
                                 .background(Color.Transparent)
                         )
+
+                        HorizontalDivider()
+
+                        DropdownMenuItem(onClick = {
+                            saveLogsToTxtFile(context)
+                        }, text = {
+                            Text("Share Logs")
+                        })
                     }
                 },
                 scrollBehavior = scrollBehavior
@@ -131,15 +136,9 @@ fun StartView(userPreferencesManager: UserPreferencesManager, discovery: Discove
                             containerColor = MaterialTheme.colorScheme.surfaceContainer,
                         ),
                         shape = RoundedCornerShape(50.dp),
-                        modifier = Modifier.padding(10.dp)
+                        modifier = Modifier.padding(0.dp, 0.dp, 0.dp, 20.dp)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(10.dp)) {
-//                        Icon(
-//                            imageVector = Icons.Filled.CheckCircle,
-//                            contentDescription = "check",
-//                            tint = Color(0xFF23BF04),
-//                            modifier = Modifier.padding(horizontal = 10.dp)
-//                        )
                             Text(
                                 color = Color(0xFF23BF04),
                                 text = "Ready to receive",

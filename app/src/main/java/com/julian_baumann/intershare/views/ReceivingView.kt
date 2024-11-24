@@ -84,10 +84,16 @@ fun ReceiveContentView(progress: ReceiveProgress, navController: NavController, 
                         DynamicBackgroundGradientColors.Receive
                     )
                 }
-                is ReceiveProgressState.Finished -> {
+                is ReceiveProgressState.Extracting, ReceiveProgressState.Finished -> {
                     DynamicBackgroundGradient(
                         LocalConfiguration.current.screenHeightDp.toFloat().dp,
                         DynamicBackgroundGradientColors.Receive
+                    )
+                }
+                is ReceiveProgressState.Cancelled -> {
+                    DynamicBackgroundGradient(
+                        LocalConfiguration.current.screenHeightDp.toFloat().dp,
+                        DynamicBackgroundGradientColors.Error
                     )
                 }
                 else -> {
@@ -159,6 +165,16 @@ fun ReceiveContentView(progress: ReceiveProgress, navController: NavController, 
                         fontWeight = FontWeight.Bold,
                         textAlign = TextAlign.Center,
                         text = "Finished"
+                    )
+                }
+                is ReceiveProgressState.Cancelled -> {
+                    Text(modifier = Modifier.fillMaxWidth(),
+                        fontSize = 30.sp,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center,
+                        color = Color.Red,
+                        text = "Cancelled"
                     )
                 }
                 else -> {

@@ -104,16 +104,16 @@ fun SendView(devices: List<Device>, selectedFileUris: List<String>, shouldTermin
                     modifier = Modifier.padding(20.dp).fillMaxWidth()
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(10.dp)) {
-                        Icon(
-                            imageVector = Icons.Default.VisibilityOff,
-                            contentDescription = "Eye",
-                            modifier = Modifier.padding(horizontal = 10.dp)
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(30.dp),
+                            color = MaterialTheme.colorScheme.secondary,
+                            trackColor = MaterialTheme.colorScheme.surfaceVariant,
                         )
-                        Column {
+                        Column(modifier = Modifier.padding(start = 8.dp)) {
                             Text(
                                 modifier = Modifier.alpha(0.8f),
                                 fontWeight = FontWeight.Bold,
-                                text = "Don't see the right device?"
+                                text = "Looking for nearby devices"
                             )
                             Text(
                                 modifier = Modifier.alpha(0.5f),

@@ -14,8 +14,8 @@ android {
         applicationId = "com.julian_baumann.intershare"
         minSdk = 31
         targetSdk = 34
-        versionCode = 4
-        versionName = "0.1.1-beta.2"
+        versionCode = 8
+        versionName = "0.1.4-beta"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -67,7 +67,7 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 
-    implementation("com.julian_baumann:intershare_sdk:0.1.1-beta.3")
+    implementation("com.julian_baumann:intershare_sdk:0.1.1-beta.18")
     implementation("androidx.compose.material3:material3-android:1.2.0")
     implementation("androidx.compose.material:material-icons-extended:1.6.1")
     implementation("androidx.appcompat:appcompat:1.6.1")
