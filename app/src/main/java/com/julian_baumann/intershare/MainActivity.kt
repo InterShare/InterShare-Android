@@ -3,10 +3,7 @@ package com.julian_baumann.intershare
 import android.Manifest
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
-import android.content.BroadcastReceiver
-import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
+import android.content.*
 import android.media.MediaScannerConnection
 import android.net.Uri
 import android.os.Build
@@ -19,12 +16,14 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStore
@@ -67,6 +66,7 @@ class MainActivity : ComponentActivity(), NearbyConnectionDelegate, DiscoveryDel
         private var accessNearbyDevicesPermissionGranted = false
         private var bluetoothManager: BluetoothManager? = null
         private var appWasPaused = false
+        private var scanning = false
 
         fun startAdvertising() {
             CoroutineScope(Dispatchers.Main).launch {
@@ -192,6 +192,18 @@ class MainActivity : ComponentActivity(), NearbyConnectionDelegate, DiscoveryDel
         }
     }
 
+    private fun openUrlInBrowser(context: Context, url: String) {
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        context.startActivity(intent)
+    }
+    
+    private fun copyToClipboard(context: Context, text: String) {
+        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        val clip = ClipData.newPlainText("Copied Text", text)
+        clipboard.setPrimaryClip(clip)
+    }
+
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
@@ -203,11 +215,57 @@ class MainActivity : ComponentActivity(), NearbyConnectionDelegate, DiscoveryDel
 
         setContent {
             navController = rememberNavController()
-            val discovery = remember { Discovery(baseContext, this) }
+            var discovery = remember { Discovery(baseContext, this) }
             val isExternalShare = remember { mutableStateOf(false) }
             var startDestination = remember { "start" }
             val bluetoothAdapter = bluetoothManager!!.adapter
             var isBluetoothEnabled by remember { mutableStateOf(bluetoothAdapter.isEnabled) }
+
+            var clipboard by remember { mutableStateOf<String?>(null) }
+            
+            fun shareFiles(urls: List<String>, setRoot: Boolean = false) {
+                if (isBluetoothEnabled && serverStarted) {
+                    discovery.stopScanning()
+                    discovery = Discovery(baseContext, this)
+                }
+                
+                selectedFileUris.value = urls
+                clipboard = null
+                devices.clear()
+                devices.addAll(discovery.getDevices())
+
+                if (isBluetoothEnabled && serverStarted) {
+                    discovery.startScanning()
+                }
+                
+                if (setRoot) {
+                    startDestination = "send"
+                } else {
+                    navController.navigate("send")
+                }
+            }
+            
+            fun shareText(content: String, setRoot: Boolean = false) {
+                if (isBluetoothEnabled && serverStarted) {
+                    discovery.stopScanning()
+                    discovery = Discovery(baseContext, this)
+                }
+                
+                selectedFileUris.value = listOf()
+                clipboard = content
+                devices.clear()
+                devices.addAll(discovery.getDevices())
+
+                if (isBluetoothEnabled && serverStarted) {
+                    discovery.startScanning()
+                }
+
+                if (setRoot) {
+                    startDestination = "send"
+                } else {
+                    navController.navigate("send")
+                }
+            }
 
             // Update the state dynamically whenever BLE is enabled or disabled
             LaunchedEffect(Unit) {
@@ -253,11 +311,8 @@ class MainActivity : ComponentActivity(), NearbyConnectionDelegate, DiscoveryDel
                         }
 
                         uri?.let {
-                            selectedFileUris.value = listOf(getPathFromUri(baseContext, it)!!)
                             isExternalShare.value = true
-                            devices.clear()
-                            devices.addAll(discovery.getDevices())
-                            startDestination = "send"
+                            shareFiles(listOf(getPathFromUri(baseContext, it)!!), true)
                         }
                     }
 
@@ -279,11 +334,8 @@ class MainActivity : ComponentActivity(), NearbyConnectionDelegate, DiscoveryDel
                                 }
                             }
 
-                            selectedFileUris.value = listOrUris.toList()
                             isExternalShare.value = true
-                            devices.clear()
-                            devices.addAll(discovery.getDevices())
-                            startDestination = "send"
+                            shareFiles(listOrUris.toList(), true)
                         }
                     }
                 }
@@ -294,27 +346,25 @@ class MainActivity : ComponentActivity(), NearbyConnectionDelegate, DiscoveryDel
                         navController = navController,
                         startDestination = startDestination
                     ) {
-                        composable(route = "start") {
-                            if (isBluetoothEnabled && serverStarted) {
-                                discovery.stopScanning()
-                            }
 
-                            StartView(userPreferencesManager!!, discovery, devices, navController, selectedFileUris, isBluetoothEnabled, serverStarted)
+                        composable(route = "start") {
+                            scanning = false
+
+                            StartView(userPreferencesManager!!, discovery, navController, ::shareFiles, ::shareText, isBluetoothEnabled, serverStarted)
                         }
 
                         composable(
                             route = "send",
                         ) {
-                            if (isBluetoothEnabled && serverStarted) {
-                                discovery.startScanning()
-                            }
+                            scanning = true
 
-                            SendView(devices, selectedFileUris.value!!, isExternalShare.value, navController, isBluetoothEnabled, discovery, {
+                            SendView(devices, selectedFileUris.value!!, clipboard = clipboard, isExternalShare.value, navController, isBluetoothEnabled, discovery, {
                                 finish()
                             })
                         }
 
                         composable(route = "receive") {
+                            scanning = false
                             if (receiveProgress != null && currentConnectionRequest != null) {
                                 ReceiveContentView(receiveProgress!!, navController, currentConnectionRequest)
                             }
@@ -323,23 +373,34 @@ class MainActivity : ComponentActivity(), NearbyConnectionDelegate, DiscoveryDel
                 }
 
                 if (showConnectionRequest && currentConnectionRequest != null) {
-                    val transferIntent = remember { currentConnectionRequest?.getFileTransferIntent() }
+                    val fileTransferIntent = remember { currentConnectionRequest?.getFileTransferIntent() }
+                    val clipboardTransferIntent = remember { currentConnectionRequest?.getClipboardIntent() }
+                    val isClipboard = remember { currentConnectionRequest?.getIntentType() == ConnectionIntentType.CLIPBOARD }
 
                     AlertDialog(
                         title = {
-                            if (transferIntent?.fileCount == 1UL) {
-                                Text(text = "${currentConnectionRequest?.getSender()?.name} wants to send you a file")
-                            } else {
-                                Text(text = "${currentConnectionRequest?.getSender()?.name} wants to send you ${transferIntent?.fileCount} files")
+                            if (isClipboard) {
+                                Text(text = "${currentConnectionRequest?.getSender()?.name} wants to send you a text")
+                            }
+                            else {
+                                if (fileTransferIntent?.fileCount == 1UL) {
+                                    Text(text = "${currentConnectionRequest?.getSender()?.name} wants to send you a file")
+                                } else {
+                                    Text(text = "${currentConnectionRequest?.getSender()?.name} wants to send you ${fileTransferIntent?.fileCount} files")
+                                }
                             }
                         },
                         text = {
                             Column {
-                                if (transferIntent?.fileName != null) {
-                                    Text(text = transferIntent.fileName!!)
-                                }
+                                if (isClipboard) {
+                                    Text(text = "${clipboardTransferIntent?.clipboardContent}", maxLines = 4, overflow = TextOverflow.Ellipsis)
+                                } else {
+                                    if (fileTransferIntent?.fileName != null) {
+                                        Text(text = fileTransferIntent.fileName!!)
+                                    }
 
-                                Text(text = "Size: ${toHumanReadableSize(transferIntent?.fileSize)}")
+                                    Text(text = "Size: ${toHumanReadableSize(fileTransferIntent?.fileSize)}")   
+                                }
                             }
                         },
                         onDismissRequest = {
@@ -350,25 +411,49 @@ class MainActivity : ComponentActivity(), NearbyConnectionDelegate, DiscoveryDel
                             }
                         },
                         confirmButton = {
-                            TextButton(
-                                onClick = {
-                                    showConnectionRequest = false
-                                    receiveProgress = ReceiveProgress()
-                                    currentConnectionRequest?.setProgressDelegate(receiveProgress!!)
-                                    showReceivingSheet = true
-
-                                    navController.navigate("receive")
-
-                                    Thread {
-                                        val files = currentConnectionRequest?.accept()
-
-                                        if (files?.isNotEmpty() == true) {
-                                            registerFilesWithSystem(files)
+                            if (isClipboard) {
+                                Row {
+                                    TextButton(
+                                        onClick = {
+                                            copyToClipboard(baseContext, clipboardTransferIntent?.clipboardContent ?: "")
+                                            showConnectionRequest = false
                                         }
-                                    }.start()
+                                    ) {
+                                        Text("Copy")
+                                    }
+
+                                    if (currentConnectionRequest?.isLink() == true) {
+                                        TextButton(
+                                            onClick = {
+                                                openUrlInBrowser(baseContext, clipboardTransferIntent?.clipboardContent ?: "")
+                                                showConnectionRequest = false
+                                            }
+                                        ) {
+                                            Text("Open Link")
+                                        }
+                                    }
+                                } 
+                            } else {
+                                TextButton(
+                                    onClick = {
+                                        showConnectionRequest = false
+                                        receiveProgress = ReceiveProgress()
+                                        currentConnectionRequest?.setProgressDelegate(receiveProgress!!)
+                                        showReceivingSheet = true
+
+                                        navController.navigate("receive")
+
+                                        Thread {
+                                            val files = currentConnectionRequest?.accept()
+
+                                            if (files?.isNotEmpty() == true) {
+                                                registerFilesWithSystem(files)
+                                            }
+                                        }.start()
+                                    }
+                                ) {
+                                    Text("Accept")
                                 }
-                            ) {
-                                Text("Accept")
                             }
                         },
                         dismissButton = {
@@ -378,7 +463,7 @@ class MainActivity : ComponentActivity(), NearbyConnectionDelegate, DiscoveryDel
                                     currentConnectionRequest?.decline()
                                 }
                             ) {
-                                Text("Decline")
+                                Text("Cancel")
                             }
                         }
                     )

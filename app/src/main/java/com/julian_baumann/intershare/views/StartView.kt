@@ -1,7 +1,9 @@
 package com.julian_baumann.intershare.views
 
 import android.app.DownloadManager
+import android.content.ClipboardManager
 import android.content.Context
+import android.content.Context.CLIPBOARD_SERVICE
 import android.content.Intent
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
@@ -13,7 +15,14 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.QuestionMark
+import androidx.compose.material.icons.outlined.Folder
+import androidx.compose.material.icons.outlined.PhotoLibrary
+import androidx.compose.material.icons.rounded.ContentPaste
+import androidx.compose.material.icons.rounded.Folder
+import androidx.compose.material.icons.rounded.PhotoLibrary
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.snapshots.SnapshotStateList
@@ -43,9 +52,31 @@ fun getAppVersion(context: Context): String {
     }
 }
 
+fun getClipboardText(context: Context): String? {
+    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+    return if (clipboard.hasPrimaryClip()) {
+        val clipData = clipboard.primaryClip
+        if (clipData != null && clipData.itemCount > 0) {
+            clipData.getItemAt(0).text?.toString()
+        } else {
+            null
+        }
+    } else {
+        null
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun StartView(userPreferencesManager: UserPreferencesManager, discovery: Discovery, devices: SnapshotStateList<Device>, navController: NavHostController, selectedFileUri: MutableState<List<String>>, bluetoothEnabled: Boolean, serverStarted: Boolean) {
+fun StartView(
+    userPreferencesManager: UserPreferencesManager,
+    discovery: Discovery,
+    navController: NavHostController,
+    shareFiles: (List<String>) -> Unit,
+    shareText: (String) -> Unit,
+    bluetoothEnabled: Boolean,
+    serverStarted: Boolean
+) {
     val context = LocalContext.current
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
 
@@ -158,26 +189,23 @@ fun StartView(userPreferencesManager: UserPreferencesManager, discovery: Discove
                         .alpha(0.8F)
                 )
 
-                fun processUris(uris: List<Uri>, context: Context, discovery: Discovery, navController: NavHostController, selectedFileUri: MutableState<List<String>>, devices: MutableList<Device>) {
+                fun processUris(uris: List<Uri>, context: Context, discovery: Discovery, navController: NavHostController) {
                     val filePaths = uris.mapNotNull { getPathFromUri(context, it) }
 
                     if (filePaths.isNotEmpty()) {
-                        selectedFileUri.value = filePaths
-                        devices.clear()
-                        devices.addAll(discovery.getDevices())
-                        navController.navigate("send")
+                        shareFiles(filePaths)
                     }
                 }
 
                 val pickFileLauncher = rememberLauncherForActivityResult(
                     ActivityResultContracts.GetMultipleContents()
                 ) { fileUris ->
-                    processUris(fileUris, context, discovery, navController, selectedFileUri, devices)
+                    processUris(fileUris, context, discovery, navController)
                 }
                 val pickVisualMediaLauncher = rememberLauncherForActivityResult(
                     ActivityResultContracts.PickMultipleVisualMedia()
                 ) { imageUris ->
-                    processUris(imageUris, context, discovery, navController, selectedFileUri, devices)
+                    processUris(imageUris, context, discovery, navController)
                 }
 
                 Row(
@@ -186,26 +214,69 @@ fun StartView(userPreferencesManager: UserPreferencesManager, discovery: Discove
                 ) {
                     Button(
                         enabled = bluetoothEnabled,
+                        shape = RoundedCornerShape(35),
                         onClick = { pickVisualMediaLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)) },
                         modifier = Modifier
                             .weight(1f)
-                            .height(60.dp),
+                            .height(70.dp),
                         colors = ButtonDefaults.buttonColors(MaterialTheme.colorScheme.secondary)
                     ) {
-                        Text("Image or Video")
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = Icons.Outlined.PhotoLibrary,
+                                contentDescription = "Photo Library"
+                            )
+                            
+                            Text("Photos")
+                        }
                     }
 
                     Spacer(modifier = Modifier.width(10.dp))
 
                     Button(
                         enabled = bluetoothEnabled,
+                        shape = RoundedCornerShape(35),
                         onClick = { pickFileLauncher.launch("*/*") },
                         modifier = Modifier
                             .weight(1f)
-                            .height(60.dp),
+                            .height(70.dp),
                         colors = ButtonDefaults.buttonColors(MaterialTheme.colorScheme.secondary)
                     ) {
-                        Text("File")
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = Icons.Outlined.Folder,
+                                contentDescription = "Files"
+                            )
+
+                            Text("Files")
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(10.dp))
+                    
+                    Button(
+                        enabled = bluetoothEnabled,
+                        shape = RoundedCornerShape(35),
+                        onClick = {
+                            val copiedString = getClipboardText(context)
+
+                            if (copiedString != null) {
+                                shareText(copiedString)
+                            }
+                        },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(70.dp),
+                        colors = ButtonDefaults.buttonColors(MaterialTheme.colorScheme.secondary)
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = Icons.Rounded.ContentPaste,
+                                contentDescription = "Files"
+                            )
+
+                            Text("Clipboard")
+                        }
                     }
                 }
 
@@ -217,7 +288,7 @@ fun StartView(userPreferencesManager: UserPreferencesManager, discovery: Discove
                         .fillMaxWidth()
                         .height(60.dp)
                 ) {
-                    Text("Show received files")
+                    Text("Received Files")
                 }
             }
         }
